@@ -2491,6 +2491,8 @@ function createSystemGraphics(x, y, systemData) {
             return createFrontierSystem(x, y, systemData.name, '#00CC66');
         case 'pirate':
             return createPirateSystem(x, y, systemData.name, '#CC0000');
+        case 'nexus':
+            return createNexusStation(x, y, systemData.name, '#00DDFF');
         default:
             return createGenericSystem(x, y, systemData.name, '#FFFFFF');
     }
@@ -2864,6 +2866,47 @@ function createPirateSystem(x, y, name, color) {
                               fill="#FF6600" opacity="0.6">
                        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
                      </polygon>
+                   </g>`;
+    }
+    
+    system += '</g>';
+    return system;
+}
+
+// Nexus Station - Advanced trading hub
+function createNexusStation(x, y, name, color) {
+    let system = `<g class="solar-system nexus" data-system="${name}">`;
+    
+    // Central nexus hub with energy field
+    system += `<circle cx="${x}" cy="${y}" r="8" fill="${color}" opacity="0.9">
+                 <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+               </circle>`;
+    
+    // Energy field rings
+    system += `<circle cx="${x}" cy="${y}" r="14" fill="none" stroke="${color}" stroke-width="1" opacity="0.4">
+                 <animate attributeName="opacity" values="0.2;0.6;0.2" dur="3s" repeatCount="indefinite" />
+               </circle>`;
+    system += `<circle cx="${x}" cy="${y}" r="20" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.3">
+                 <animate attributeName="opacity" values="0.1;0.5;0.1" dur="4s" repeatCount="indefinite" />
+               </circle>`;
+    
+    // Nexus PNG icon
+    system += `<image x="${x-12}" y="${y-12}" width="24" height="24" href="assets/Nexus.PNG" opacity="0.8"/>`;
+    
+    // Visible NEXUS text for debugging
+    system += `<text x="${x}" y="${y+35}" text-anchor="middle" fill="${color}" font-size="8" font-weight="bold" opacity="0.9">NEXUS</text>`;
+    
+    // Docking ports (rotating)
+    for (let i = 0; i < 4; i++) {
+        const angle = i * 90;
+        system += `<g transform="rotate(${angle} ${x} ${y})">
+                     <animateTransform attributeName="transform" type="rotate" 
+                                       values="0 ${x} ${y};360 ${x} ${y}" 
+                                       dur="${10 + i}s" repeatCount="indefinite" additive="sum"/>
+                     <rect x="${x + 14}" y="${y - 1.5}" width="6" height="3" 
+                           fill="#FFD700" opacity="0.8">
+                       <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+                     </rect>
                    </g>`;
     }
     
