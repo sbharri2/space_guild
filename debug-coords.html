@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Coordinate Debug</title>
+</head>
+<body>
+    <script>
+        // Test coordinate conversions
+        function offsetToAxial(col, row) {
+            const q = col;
+            const r = row - Math.floor(col / 2);
+            return {q, r};
+        }
+
+        function axialToOffset(q, r) {
+            const col = q;
+            const row = r + Math.floor(q / 2);
+            return {col, row};
+        }
+
+        console.log('Testing coordinate conversions...');
+        
+        // Test some of the cells from the game
+        const testCells = [
+            [26, 22], [27, 22], [26, 23], [27, 23], // claimed
+            [29, 21], [30, 21], [29, 22], [30, 22]  // visited
+        ];
+        
+        for (const [col, row] of testCells) {
+            const axial = offsetToAxial(col, row);
+            const backToOffset = axialToOffset(axial.q, axial.r);
+            console.log(`offset(${col},${row}) -> axial(${axial.q},${axial.r}) -> back(${backToOffset.col},${backToOffset.row})`);
+            
+            if (backToOffset.col !== col || backToOffset.row !== row) {
+                console.error(`❌ Conversion error for ${col},${row}!`);
+            } else {
+                console.log(`✅ Conversion OK for ${col},${row}`);
+            }
+        }
+    </script>
+</body>
+</html>
