@@ -2888,9 +2888,6 @@ function createNexusStation(x, y, name, color) {
     // Nexus PNG icon (doubled in size)
     system += `<image x="${x-24}" y="${y-24}" width="48" height="48" href="assets/Nexus.PNG" opacity="0.8"/>`;
     
-    // Visible NEXUS text for debugging
-    system += `<text x="${x}" y="${y+45}" text-anchor="middle" fill="${color}" font-size="8" font-weight="bold" opacity="0.9">NEXUS</text>`;
-    
     // Docking ports (rotating at larger radius)
     for (let i = 0; i < 4; i++) {
         const angle = i * 90;
