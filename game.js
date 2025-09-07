@@ -1916,11 +1916,15 @@ function regenerateAllSystems() {
     // Generate new systems
     generateSystemsInternal();
     
+    // Count Nexus stations for mobile debugging
+    const nexusCount = Array.from(gameState.galaxy.generatedSystems.values())
+        .filter(sys => sys.type === 'nexus').length;
+    
     // Update the map to show changes
     updateScreen('map');
     toggleDevMenu();
     
-    alert(`Generated ${gameState.galaxy.generatedSystems.size} new systems!`);
+    alert(`Generated ${gameState.galaxy.generatedSystems.size} systems. Nexus stations: ${nexusCount}`);
 }
 
 // Dev tool: Regenerate all resources with better distribution
@@ -2274,7 +2278,11 @@ function generateSystemsInternal() {
     // Use Poisson Disc Sampling for natural but evenly spaced distribution
     const systems = generateSystemsWithPoissonDisc(cols, rows);
     
+    // Count Nexus stations for debugging
+    const nexusCount = systems.filter(sys => sys.type === 'nexus').length;
+    
     console.log(`🌌 Generated ${systems.length} systems across the galaxy`);
+    console.log(`🔗 Nexus stations: ${nexusCount}`);
     saveGameState();
 }
 
@@ -2378,6 +2386,7 @@ function createRandomSystem(x, y, z) {
         { type: 'frontier', weight: 15, names: ['Frontier Outpost', 'Border Station', 'Remote Colony', 'Edge Settlement'] },
         { type: 'research', weight: 10, names: ['Research Station', 'Science Outpost', 'Lab Complex', 'Observatory'] },
         { type: 'pirate', weight: 8, names: ['Pirate Haven', 'Smuggler Base', 'Rogue Station', 'Outlaw Port'] },
+        { type: 'nexus', weight: 5, names: ['Nexus Station', 'Trade Hub', 'Commerce Gateway', 'Exchange Center'] },
         { type: 'blackhole', weight: 2, names: ['Void Rift', 'Dark Anomaly', 'Singularity', 'Event Horizon'] }
     ];
     
