@@ -2877,33 +2877,28 @@ function createPirateSystem(x, y, name, color) {
 function createNexusStation(x, y, name, color) {
     let system = `<g class="solar-system nexus" data-system="${name}">`;
     
-    // Central nexus hub with energy field
-    system += `<circle cx="${x}" cy="${y}" r="8" fill="${color}" opacity="0.9">
-                 <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
-               </circle>`;
-    
-    // Energy field rings
-    system += `<circle cx="${x}" cy="${y}" r="14" fill="none" stroke="${color}" stroke-width="1" opacity="0.4">
+    // Energy field rings (larger to accommodate bigger PNG)
+    system += `<circle cx="${x}" cy="${y}" r="28" fill="none" stroke="${color}" stroke-width="1" opacity="0.4">
                  <animate attributeName="opacity" values="0.2;0.6;0.2" dur="3s" repeatCount="indefinite" />
                </circle>`;
-    system += `<circle cx="${x}" cy="${y}" r="20" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.3">
+    system += `<circle cx="${x}" cy="${y}" r="36" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.3">
                  <animate attributeName="opacity" values="0.1;0.5;0.1" dur="4s" repeatCount="indefinite" />
                </circle>`;
     
-    // Nexus PNG icon
-    system += `<image x="${x-12}" y="${y-12}" width="24" height="24" href="assets/Nexus.PNG" opacity="0.8"/>`;
+    // Nexus PNG icon (doubled in size)
+    system += `<image x="${x-24}" y="${y-24}" width="48" height="48" href="assets/Nexus.PNG" opacity="0.8"/>`;
     
     // Visible NEXUS text for debugging
-    system += `<text x="${x}" y="${y+35}" text-anchor="middle" fill="${color}" font-size="8" font-weight="bold" opacity="0.9">NEXUS</text>`;
+    system += `<text x="${x}" y="${y+45}" text-anchor="middle" fill="${color}" font-size="8" font-weight="bold" opacity="0.9">NEXUS</text>`;
     
-    // Docking ports (rotating)
+    // Docking ports (rotating at larger radius)
     for (let i = 0; i < 4; i++) {
         const angle = i * 90;
         system += `<g transform="rotate(${angle} ${x} ${y})">
                      <animateTransform attributeName="transform" type="rotate" 
                                        values="0 ${x} ${y};360 ${x} ${y}" 
                                        dur="${10 + i}s" repeatCount="indefinite" additive="sum"/>
-                     <rect x="${x + 14}" y="${y - 1.5}" width="6" height="3" 
+                     <rect x="${x + 26}" y="${y - 1.5}" width="6" height="3" 
                            fill="#FFD700" opacity="0.8">
                        <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
                      </rect>
