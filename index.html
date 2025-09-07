@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>Space Guilds</title>
+    <link rel="stylesheet" href="style.css?v=20250907g">
+    <script>
+      (function(){
+        try {
+          const proto = location.protocol;
+          const isHttp = proto === 'http:' || proto === 'https:';
+          const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+          if (isHttp || isLocalhost) {
+            var l = document.createElement('link');
+            l.rel = 'manifest';
+            l.href = 'manifest.json?v=20250907a';
+            document.head.appendChild(l);
+          } else {
+            console.warn('Skipping manifest load on non-HTTP(S) origin to avoid CORS.');
+          }
+        } catch(e) { console.warn('Manifest injection skipped:', e); }
+      })();
+    </script>
+</head>
+<body>
+    <div id="app">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <span class="top-left">MISSION</span>
+            <span class="top-right">LOG</span>
+        </div>
+
+        <!-- Main Display Container -->
+        <div class="main-display">
+            <pre id="ascii-display" class="ascii-text"></pre>
+        </div>
+
+        <!-- Fixed Status Panel -->
+        <div class="status-panel" id="status-panel">
+            <div class="status-item">LOC: <span id="current-location">SOL</span></div>
+            <div class="status-item">AP: <span id="action-points">8/10</span></div>
+            <div class="status-item">¢<span id="credits">1247</span></div>
+            <div class="status-item">SHIP: <span id="ship-name">Starfinder</span></div>
+        </div>
+
+        <!-- Floating Center Button -->
+        <button class="floating-center-btn" id="center-btn" title="Center on Ship" onclick="centerOnShip()">⊕</button>
+        
+        <!-- Developers Menu Button -->
+        <button class="floating-center-btn" id="dev-menu-btn" title="Developers Menu" style="bottom: 180px;">⚙</button>
+
+        <!-- Zoom Controls -->
+        <button class="floating-center-btn" id="zoom-in-btn" aria-label="Zoom In" title="Zoom In" style="bottom: 300px;" onclick="zoomIn()">+</button>
+        <button class="floating-center-btn" id="zoom-out-btn" aria-label="Zoom Out" title="Zoom Out" style="bottom: 240px;" onclick="zoomOut()">-</button>
+        
+        <!-- Developers Menu Popup -->
+        <div id="dev-menu" class="dev-menu hidden">
+            <div class="dev-menu-header">🛠️ Developer Options</div>
+            <div class="dev-menu-content">
+                <!-- Player Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Player</div>
+                    <button class="dev-menu-item" onclick="showShipSelector()">Switch Ship</button>
+                    <button class="dev-menu-item" onclick="addTestAP()">Add 10 AP</button>
+                    <button class="dev-menu-item" onclick="teleportToSystem()">Teleport to Coordinates</button>
+                    <button class="dev-menu-item" onclick="showEquipmentShop()">Equipment Shop</button>
+                </div>
+                
+                <!-- Market Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Markets</div>
+                    <button class="dev-menu-item" onclick="showSystemMarket('sol')">Sol Market</button>
+                    <button class="dev-menu-item" onclick="showSystemMarket('mars')">Mars Market</button>
+                    <button class="dev-menu-item" onclick="showSystemMarket('nexus')">Nexus Market</button>
+                    <button class="dev-menu-item" onclick="showSystemMarket('void')">Void Market</button>
+                </div>
+                
+                <!-- Map Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Map & Tiles</div>
+                    <button class="dev-menu-item" onclick="toggleTileStateMode()">Change Tile States</button>
+                    <button class="dev-menu-item" onclick="setAllTilesScanned()">All Tiles → Scanned</button>
+                    <button class="dev-menu-item" onclick="setAllTilesVisited()">All Tiles → Visited</button>
+                    <button class="dev-menu-item" onclick="setAllTilesClaimed()">All Tiles → Claimed</button>
+                    <button class="dev-menu-item" onclick="clearCellStates()">Clear All States</button>
+                </div>
+                
+                <!-- System Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Systems & Resources</div>
+                    <button class="dev-menu-item" onclick="regenerateAllSystems()">Generate All Systems</button>
+                    <button class="dev-menu-item" onclick="regenerateAllResources()">Generate All Resources</button>
+                </div>
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Wormholes</div>
+                    <button class="dev-menu-item" onclick="clearWormholes()">Clear Wormholes</button>
+                    <button class="dev-menu-item" onclick="generateWormholes()">Generate Wormholes</button>
+                    <button class="dev-menu-item" onclick="toggleShowAllWormholes()">Toggle Show All Wormholes</button>
+                </div>
+
+                <!-- NPC Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">NPCs</div>
+                    <button class="dev-menu-item" onclick="devListNpcs()">List NPCs (current phase)</button>
+                    <button class="dev-menu-item" onclick="devRecomputeNpcs()">Recompute NPCs Now</button>
+                    <button class="dev-menu-item" onclick="toggleNpcPathDebug()">Toggle NPC Path (Encounter)</button>
+                    <button class="dev-menu-item" onclick="devShowNearestNpcPath()">Show Nearest NPC Path</button>
+                    <button class="dev-menu-item" onclick="devTeleportToNearestNpc()">Teleport to Nearest NPC</button>
+                </div>
+                
+                <!-- Save/Load Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Save Data</div>
+                    <button class="dev-menu-item" onclick="saveGameState(); alert('Game Saved!')">Manual Save</button>
+                    <button class="dev-menu-item" onclick="clearSaveData()">Delete Save Data</button>
+                    <button class="dev-menu-item" onclick="exportSaveData()">Export Save</button>
+                    <button class="dev-menu-item" onclick="importSaveData()">Import Save</button>
+                </div>
+                
+                <!-- Debug Tools -->
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Debug</div>
+                    <button class="dev-menu-item" onclick="toggleEnergyMetrics()">Battery Monitor</button>
+                    <button class="dev-menu-item" onclick="showDebugInfo()">Show Debug Info</button>
+                    <button class="dev-menu-item" onclick="toggleFPS()">Toggle FPS HUD</button>
+                </div>
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Performance</div>
+                    <button class="dev-menu-item" onclick="startPerformanceProfiler()">Start Profiler</button>
+                    <button class="dev-menu-item" onclick="stopPerformanceProfiler()">Stop Profiler</button>
+                    <button class="dev-menu-item" onclick="showPerformanceReport()">Show Profiler Report</button>
+                </div>
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Animations</div>
+                    <button class="dev-menu-item" onclick="setAnimationsEnabled(false)">Disable Animations</button>
+                    <button class="dev-menu-item" onclick="setAnimationsEnabled(true)">Enable Animations</button>
+                </div>
+                <div class="dev-menu-category">
+                    <div class="dev-menu-category-title">Scanner</div>
+                    <button class="dev-menu-item" onclick="toggleDevScanUnlock()">Toggle Unlock All Scans</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tile State Mode UI -->
+        <div id="tile-state-mode" class="tile-state-ui hidden">
+            <div class="tile-state-header">Select Tile State to Apply:</div>
+            <div class="tile-state-options">
+                <button class="tile-state-btn active" data-state="none" onclick="selectTileState('none')">Clear</button>
+                <button class="tile-state-btn" data-state="scanned" onclick="selectTileState('scanned')">Scanned</button>
+                <button class="tile-state-btn" data-state="visited" onclick="selectTileState('visited')">Visited</button>
+                <button class="tile-state-btn" data-state="claimed" onclick="selectTileState('claimed')">Claimed</button>
+            </div>
+            <button class="tile-state-close" onclick="exitTileStateMode()">Exit Mode</button>
+        </div>
+        
+        <!-- Ship Selector Modal -->
+        <div id="ship-selector" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">Select Ship</div>
+                <div class="ship-grid">
+                    <div class="ship-option" onclick="selectShip('scout1')">
+                        <img src="assets/scout_class_1.png?v=20250828i" alt="Scout Class 1">
+                        <span>Scout I</span>
+                    </div>
+                    <div class="ship-option" onclick="selectShip('scout2')">
+                        <img src="assets/scout_class_2.png?v=20250828i" alt="Scout Class 2">
+                        <span>Scout II</span>
+                    </div>
+                    <div class="ship-option" onclick="selectShip('scout3')">
+                        <img src="assets/scout_class_3.png?v=20250828i" alt="Scout Class 3">
+                        <span>Scout III</span>
+                    </div>
+                    <div class="ship-option" onclick="selectShip('scout4')">
+                        <img src="assets/scout_class_4.png?v=20250828i" alt="Scout Class 4">
+                        <span>Scout IV</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeShipSelector()">Close</button>
+            </div>
+        </div>
+
+        <!-- Trading Window Modal -->
+        <div id="trading-window" class="modal hidden">
+            <div class="modal-content trading-modal">
+                <div class="modal-header">
+                    <div class="market-title">MARKET TERMINAL</div>
+                    <div class="market-info">
+                        <span id="market-system-name">SYSTEM</span>
+                        <span class="security-level" id="market-security">SECURITY: UNKNOWN</span>
+                    </div>
+                </div>
+                
+                <div class="trading-stats">
+                    <div class="stat-item">Credits: ¢<span id="trade-credits">0</span></div>
+                    <div class="stat-item">Cargo: <span id="trade-cargo-used">0</span>/<span id="trade-cargo-capacity">20</span></div>
+                    <div class="stat-item" id="trade-profit-indicator"></div>
+                </div>
+
+                <div class="trading-panels">
+                    <!-- Buy Panel -->
+                    <div class="trade-panel buy-panel">
+                        <h3>BUY FROM MARKET</h3>
+                        <div class="resource-list" id="buy-list">
+                            <!-- Resources will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Sell Panel -->
+                    <div class="trade-panel sell-panel">
+                        <h3>SELL FROM CARGO</h3>
+                        <div class="resource-list" id="sell-list">
+                            <!-- Cargo items will be dynamically added here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="trade-actions">
+                    <button class="btn-primary" id="confirm-trades" onclick="confirmTrades()">CONFIRM TRADES</button>
+                    <button class="modal-close" onclick="closeTradingWindow()">CLOSE</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Tab Bar -->
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-screen="map">
+                <span class="tab-icon">◉</span>
+                <span class="tab-label">MAP</span>
+            </button>
+            <button class="tab-btn" data-screen="ship">
+                <span class="tab-icon">▶</span>
+                <span class="tab-label">SHIP</span>
+            </button>
+            <button class="tab-btn" data-screen="guild">
+                <span class="tab-icon">⬢</span>
+                <span class="tab-label">GUILD</span>
+            </button>
+            <button class="tab-btn" data-screen="crisis">
+                <span class="tab-icon">!</span>
+                <span class="tab-label">CRISIS</span>
+            </button>
+        </nav>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading-overlay">
+            <div class="loading-spinner">
+                <span class="loading-text">INITIALIZING...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+/**
+ * Energy Metrics Tracker for Mobile Web Apps
+ * Monitors performance indicators that correlate with battery usage
+ */
+
+class EnergyMetrics {
+  constructor(options = {}) {
+    this.enabled = options.enabled ?? false; // Start disabled
+    this.reportInterval = options.reportInterval ?? 10000; // 10 seconds
+    this.showHUD = options.showHUD ?? true;
+    this.autoAdaptFrameRate = options.autoAdaptFrameRate ?? true;
+    
+    // Metrics state
+    this.state = {
+      frames: 0,
+      frameDeltas: [],
+      over16ms: 0,
+      over33ms: 0,
+      over50ms: 0,
+      lastFrameTime: performance.now(),
+      
+      longTaskTime: 0,
+      longTaskCount: 0,
+      
+      networkBytes: 0,
+      networkRequests: 0,
+      
+      jsHeapSize: 0,
+      
+      currentFPS: 60,
+      targetFPS: 60,
+      
+      startTime: performance.now(),
+      reportCount: 0
+    };
+    
+    // Performance goals (mobile game standards)
+    this.goals = {
+      fps: { min: 30, target: 60, label: 'FPS' },
+      jank16ms: { max: 10, label: '>16ms frames %' },
+      jank33ms: { max: 5, label: '>33ms frames %' },
+      jank50ms: { max: 1, label: '>50ms frames %' },
+      longTasksPerMin: { max: 8, label: 'Long tasks/min' },
+      longTaskTimePerMin: { max: 500, label: 'Long task ms/min' },
+      cpuPercent: { max: 15, label: 'CPU %' },
+      networkKBPerMin: { max: 100, label: 'Network KB/min' },
+      networkReqsPerMin: { max: 60, label: 'Network reqs/min' }
+    };
+    
+    if (this.enabled) {
+      this.init();
+    }
+  }
+  
+  init() {
+    this.setupFrameTracking();
+    this.setupLongTaskObserver();
+    this.setupNetworkTracking();
+    this.setupMemoryTracking();
+    this.setupVisibilityHandling();
+    this.setupReporting();
+    
+    if (this.showHUD) {
+      this.createHUD();
+    }
+    
+    console.log('📊 Energy Metrics Tracker initialized. Add ?dev to enable.', this.goals);
+  }
+  
+  setupFrameTracking() {
+    let skipFrame = false;
+    
+    const track = (timestamp) => {
+      const delta = timestamp - this.state.lastFrameTime;
+      this.state.lastFrameTime = timestamp;
+      
+      // Skip frame for 30 FPS mode
+      if (this.state.targetFPS === 30) {
+        skipFrame = !skipFrame;
+        if (skipFrame) {
+          requestAnimationFrame(track);
+          return;
+        }
+      }
+      
+      this.state.frames++;
+      this.state.frameDeltas.push(delta);
+      
+      // Keep only last 60 frames for accurate FPS calculation
+      if (this.state.frameDeltas.length > 60) {
+        this.state.frameDeltas.shift();
+      }
+      
+      // Track frame timing violations
+      if (delta > 16.67) this.state.over16ms++;
+      if (delta > 33.33) this.state.over33ms++;
+      if (delta > 50) this.state.over50ms++;
+      
+      requestAnimationFrame(track);
+    };
+    
+    requestAnimationFrame(track);
+  }
+  
+  setupLongTaskObserver() {
+    if (!('PerformanceObserver' in window)) return;
+    
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          this.state.longTaskTime += entry.duration;
+          this.state.longTaskCount++;
+        }
+      });
+      observer.observe({ entryTypes: ['longtask'] });
+    } catch (e) {
+      console.warn('Long Tasks API not supported');
+    }
+  }
+  
+  setupNetworkTracking() {
+    // Track fetch requests
+    const originalFetch = window.fetch;
+    if (originalFetch) {
+      window.fetch = async (...args) => {
+        const response = await originalFetch.apply(window, args);
+        
+        try {
+          const contentLength = response.headers.get('content-length');
+          const bytes = contentLength ? parseInt(contentLength, 10) : 0;
+          
+          if (bytes > 0) {
+            this.state.networkBytes += bytes;
+          }
+          this.state.networkRequests++;
+        } catch (e) {}
+        
+        return response;
+      };
+    }
+  }
+  
+  setupMemoryTracking() {
+    // Try to use measureUserAgentSpecificMemory (Chrome)
+    if (performance.measureUserAgentSpecificMemory) {
+      this.trackMemoryUASM();
+    }
+    // Fallback to memory info (Chrome only)
+    else if (performance.memory) {
+      this.trackMemoryLegacy();
+    }
+  }
+  
+  async trackMemoryUASM() {
+    try {
+      const measurement = await performance.measureUserAgentSpecificMemory();
+      this.state.jsHeapSize = measurement.bytes;
+    } catch (e) {}
+  }
+  
+  trackMemoryLegacy() {
+    if (performance.memory?.usedJSHeapSize) {
+      this.state.jsHeapSize = performance.memory.usedJSHeapSize;
+    }
+  }
+  
+  setupVisibilityHandling() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.pause();
+      } else {
+        this.resume();
+      }
+    });
+  }
+  
+  pause() {
+    this.paused = true;
+  }
+  
+  resume() {
+    this.paused = false;
+    this.state.lastFrameTime = performance.now();
+  }
+  
+  setupReporting() {
+    setInterval(() => {
+      if (!this.paused) {
+        this.report();
+      }
+    }, this.reportInterval);
+  }
+  
+  calculateMetrics() {
+    const intervalSeconds = this.reportInterval / 1000;
+    const minuteMultiplier = 60 / intervalSeconds;
+    
+    // Calculate average FPS from frame deltas
+    const avgDelta = this.state.frameDeltas.reduce((a, b) => a + b, 0) / this.state.frameDeltas.length;
+    const currentFPS = avgDelta > 0 ? 1000 / avgDelta : 0;
+    
+    return {
+      fps: Math.round(currentFPS),
+      jank16ms: (this.state.over16ms / this.state.frames * 100) || 0,
+      jank33ms: (this.state.over33ms / this.state.frames * 100) || 0,
+      jank50ms: (this.state.over50ms / this.state.frames * 100) || 0,
+      longTasksPerMin: this.state.longTaskCount * minuteMultiplier,
+      longTaskTimePerMin: this.state.longTaskTime * minuteMultiplier,
+      cpuPercent: (this.state.longTaskTime / this.reportInterval * 100) || 0,
+      networkKBPerMin: (this.state.networkBytes / 1024) * minuteMultiplier,
+      networkReqsPerMin: this.state.networkRequests * minuteMultiplier,
+      memoryMB: this.state.jsHeapSize / (1024 * 1024),
+      targetFPS: this.state.targetFPS
+    };
+  }
+  
+  evaluatePerformance(metrics) {
+    const scores = {};
+    let totalScore = 0;
+    let maxScore = 0;
+    
+    // FPS score (higher is better)
+    if (metrics.fps >= this.goals.fps.target) {
+      scores.fps = 1;
+    } else if (metrics.fps >= this.goals.fps.min) {
+      scores.fps = 0.5;
+    } else {
+      scores.fps = 0;
+    }
+    
+    // Jank scores (lower is better)
+    scores.jank16ms = metrics.jank16ms <= this.goals.jank16ms.max ? 1 : 0;
+    scores.jank33ms = metrics.jank33ms <= this.goals.jank33ms.max ? 1 : 0;
+    scores.jank50ms = metrics.jank50ms <= this.goals.jank50ms.max ? 1 : 0;
+    
+    // CPU scores
+    scores.longTasks = metrics.longTasksPerMin <= this.goals.longTasksPerMin.max ? 1 : 0;
+    scores.longTaskTime = metrics.longTaskTimePerMin <= this.goals.longTaskTimePerMin.max ? 1 : 0;
+    scores.cpu = metrics.cpuPercent <= this.goals.cpuPercent.max ? 1 : 0;
+    
+    // Network scores
+    scores.networkKB = metrics.networkKBPerMin <= this.goals.networkKBPerMin.max ? 1 : 0;
+    scores.networkReqs = metrics.networkReqsPerMin <= this.goals.networkReqsPerMin.max ? 1 : 0;
+    
+    // Calculate total
+    Object.values(scores).forEach(score => {
+      totalScore += score;
+      maxScore += 1;
+    });
+    
+    return {
+      scores,
+      totalScore,
+      maxScore,
+      percentage: Math.round((totalScore / maxScore) * 100),
+      grade: this.getGrade((totalScore / maxScore) * 100)
+    };
+  }
+  
+  getGrade(percentage) {
+    if (percentage >= 90) return 'A';
+    if (percentage >= 80) return 'B';
+    if (percentage >= 70) return 'C';
+    if (percentage >= 60) return 'D';
+    return 'F';
+  }
+  
+  adaptFrameRate(metrics, evaluation) {
+    if (!this.autoAdaptFrameRate) return;
+    
+    const wasTargeting = this.state.targetFPS;
+    
+    // Drop to 30 FPS if performance is poor
+    if (evaluation.percentage < 70 || 
+        metrics.jank50ms > 2 || 
+        metrics.longTaskTimePerMin > 1000) {
+      this.state.targetFPS = 30;
+    }
+    // Try to go back to 60 FPS if performance is good
+    else if (evaluation.percentage >= 85 && 
+             metrics.fps >= 28 && 
+             this.state.targetFPS === 30) {
+      this.state.targetFPS = 60;
+    }
+    
+    if (wasTargeting !== this.state.targetFPS) {
+      console.log(`📊 Frame rate adapted: ${wasTargeting} → ${this.state.targetFPS} FPS`);
+    }
+  }
+  
+  report() {
+    const metrics = this.calculateMetrics();
+    const evaluation = this.evaluatePerformance(metrics);
+    
+    // Adapt frame rate based on performance
+    this.adaptFrameRate(metrics, evaluation);
+    
+    // Console report
+    console.group(`📊 Energy Report #${++this.state.reportCount} - Grade: ${evaluation.grade} (${evaluation.percentage}%)`);
+    
+    console.table([{
+      'FPS': `${metrics.fps}/${this.state.targetFPS}`,
+      'Jank': `${metrics.jank50ms.toFixed(1)}%`,
+      'CPU': `${metrics.cpuPercent.toFixed(1)}%`,
+      'Long Tasks': `${metrics.longTasksPerMin.toFixed(0)}/min`,
+      'Network': `${metrics.networkKBPerMin.toFixed(0)}KB/min`,
+      'Memory': `${metrics.memoryMB.toFixed(0)}MB`
+    }]);
+    
+    if (evaluation.percentage < 70) {
+      console.warn('⚠️ Performance below target. Battery drain likely.');
+    }
+    
+    console.groupEnd();
+    
+    // Update HUD
+    if (this.hudElement) {
+      this.updateHUD(metrics, evaluation);
+    }
+    
+    // Reset counters
+    this.resetCounters();
+    
+    // Emit custom event
+    window.dispatchEvent(new CustomEvent('energyMetrics', {
+      detail: { metrics, evaluation }
+    }));
+    
+    return { metrics, evaluation };
+  }
+  
+  resetCounters() {
+    this.state.frames = 0;
+    this.state.over16ms = 0;
+    this.state.over33ms = 0;
+    this.state.over50ms = 0;
+    this.state.longTaskTime = 0;
+    this.state.longTaskCount = 0;
+    this.state.networkBytes = 0;
+    this.state.networkRequests = 0;
+  }
+  
+  createHUD() {
+    // Remove existing HUD if present
+    if (this.hudElement) {
+      this.hudElement.remove();
+    }
+    
+    // Create HUD container
+    this.hudElement = document.createElement('div');
+    this.hudElement.id = 'energy-metrics-hud';
+    this.hudElement.innerHTML = `
+      <style>
+        #energy-metrics-hud {
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          background: rgba(0, 0, 0, 0.9);
+          color: #00ff00;
+          padding: 8px;
+          border: 1px solid #00ff00;
+          border-radius: 4px;
+          font-family: 'Courier New', monospace;
+          font-size: 11px;
+          z-index: 10000;
+          min-width: 120px;
+          transition: all 0.3s ease;
+        }
+        
+        #energy-metrics-hud.collapsed {
+          padding: 4px 8px;
+          min-width: auto;
+        }
+        
+        #energy-metrics-hud .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 4px;
+          cursor: pointer;
+          font-weight: bold;
+        }
+        
+        #energy-metrics-hud .grade {
+          font-size: 16px;
+          font-weight: bold;
+          margin-right: 8px;
+        }
+        
+        #energy-metrics-hud .grade.A { color: #00ff00; }
+        #energy-metrics-hud .grade.B { color: #88ff00; }
+        #energy-metrics-hud .grade.C { color: #ffff00; }
+        #energy-metrics-hud .grade.D { color: #ff8800; }
+        #energy-metrics-hud .grade.F { color: #ff0000; }
+        
+        #energy-metrics-hud .metrics {
+          display: grid;
+          gap: 2px;
+        }
+        
+        #energy-metrics-hud.collapsed .metrics {
+          display: none;
+        }
+        
+        #energy-metrics-hud .metric {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        #energy-metrics-hud .metric-label {
+          margin-right: 8px;
+          opacity: 0.8;
+        }
+        
+        #energy-metrics-hud .metric-value {
+          font-weight: bold;
+        }
+        
+        #energy-metrics-hud .metric-value.good { color: #00ff00; }
+        #energy-metrics-hud .metric-value.warning { color: #ffff00; }
+        #energy-metrics-hud .metric-value.bad { color: #ff0000; }
+        
+        #energy-metrics-hud .toggle {
+          cursor: pointer;
+          user-select: none;
+        }
+      </style>
+      
+      <div class="header">
+        <div>
+          <span class="grade">-</span>
+          <span class="title">BATTERY</span>
+        </div>
+        <span class="toggle">▼</span>
+      </div>
+      
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-label">FPS:</span>
+          <span class="metric-value" data-metric="fps">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">CPU:</span>
+          <span class="metric-value" data-metric="cpu">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">HEAT:</span>
+          <span class="metric-value" data-metric="jank">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">NET:</span>
+          <span class="metric-value" data-metric="network">-</span>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(this.hudElement);
+    
+    // Add toggle functionality
+    const header = this.hudElement.querySelector('.header');
+    const toggle = this.hudElement.querySelector('.toggle');
+    
+    header.addEventListener('click', () => {
+      this.hudElement.classList.toggle('collapsed');
+      toggle.textContent = this.hudElement.classList.contains('collapsed') ? '▶' : '▼';
+    });
+  }
+  
+  updateHUD(metrics, evaluation) {
+    if (!this.hudElement) return;
+    
+    // Update grade
+    const gradeElement = this.hudElement.querySelector('.grade');
+    gradeElement.textContent = evaluation.grade;
+    gradeElement.className = `grade ${evaluation.grade}`;
+    
+    // Update FPS
+    const fpsElement = this.hudElement.querySelector('[data-metric="fps"]');
+    fpsElement.textContent = `${metrics.fps}`;
+    fpsElement.className = metrics.fps >= this.goals.fps.min ? 'metric-value good' : 'metric-value bad';
+    
+    // Update CPU
+    const cpuElement = this.hudElement.querySelector('[data-metric="cpu"]');
+    cpuElement.textContent = `${metrics.cpuPercent.toFixed(0)}%`;
+    cpuElement.className = metrics.cpuPercent <= this.goals.cpuPercent.max ? 'metric-value good' : 'metric-value bad';
+    
+    // Update Jank (Heat indicator)
+    const jankElement = this.hudElement.querySelector('[data-metric="jank"]');
+    jankElement.textContent = `${metrics.jank50ms.toFixed(1)}%`;
+    jankElement.className = metrics.jank50ms <= this.goals.jank50ms.max ? 'metric-value good' : 'metric-value bad';
+    
+    // Update Network
+    const networkElement = this.hudElement.querySelector('[data-metric="network"]');
+    networkElement.textContent = `${metrics.networkKBPerMin.toFixed(0)}K`;
+    networkElement.className = metrics.networkKBPerMin <= this.goals.networkKBPerMin.max ? 'metric-value good' : 'metric-value warning';
+  }
+  
+  // Public API
+  getSnapshot() {
+    return {
+      metrics: this.calculateMetrics(),
+      evaluation: this.evaluatePerformance(this.calculateMetrics()),
+      state: { ...this.state }
+    };
+  }
+  
+  enable() {
+    this.enabled = true;
+    this.init();
+    console.log('📊 Battery Monitor ENABLED');
+  }
+  
+  disable() {
+    this.enabled = false;
+    this.paused = true;
+    if (this.hudElement) {
+      this.hudElement.remove();
+      this.hudElement = null;
+    }
+    console.log('📊 Battery Monitor DISABLED');
+  }
+  
+  toggle() {
+    if (this.enabled) {
+      this.disable();
+    } else {
+      this.enable();
+    }
+  }
+  
+  destroy() {
+    if (this.hudElement) {
+      this.hudElement.remove();
+    }
+  }
+}
+
+// Initialize Energy Metrics only in dev or when explicitly requested
+(function(){
+  try {
+    const params = new URLSearchParams(location.search);
+    const enable = params.has('dev') || params.get('metrics') === '1';
+    window.energyMetrics = new EnergyMetrics({ enabled: enable, showHUD: enable, autoAdaptFrameRate: true, reportInterval: 15000 });
+  } catch(e) {
+    window.energyMetrics = new EnergyMetrics({ enabled: false });
+  }
+})();
+
+// Function for developer menu
+function toggleEnergyMetrics() {
+  window.energyMetrics.toggle();
+}
+    </script>
+    <script src="game.js?v=20250907g"></script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Border Test</title>
+</head>
+<body>
+    <script>
+        // Simple test to verify the boundary tracing algorithm
+        console.log('Testing boundary algorithm...');
+        
+        // Test data: 2x2 square of hexes
+        const testSet = new Set(['26,22', '27,22', '26,23', '27,23']);
+        
+        // Copy the essential functions for testing
+        function offsetToAxial(col, row) {
+            const q = col;
+            const r = row - Math.floor(col / 2);
+            return {q, r};
+        }
+
+        const AXIAL_DIRS = [
+            [+1,  0], // 0: E
+            [ 0, -1], // 1: NE
+            [-1, -1], // 2: NW
+            [-1,  0], // 3: W
+            [ 0, +1], // 4: SW
+            [+1, +1]  // 5: SE
+        ];
+
+        function axialToOffset(q, r) {
+            const col = q;
+            const row = r + Math.floor(q / 2);
+            return {col, row};
+        }
+
+        function findBoundaryHalfEdges(regionSet) {
+            const halfEdges = [];
+            
+            for (const hexId of regionSet) {
+                const [col, row] = hexId.split(',').map(Number);
+                const {q, r} = offsetToAxial(col, row);
+                
+                // Check all 6 edges
+                for (let i = 0; i < 6; i++) {
+                    const [dq, dr] = AXIAL_DIRS[i];
+                    const neighborQ = q + dq;
+                    const neighborR = r + dr;
+                    const {col: nCol, row: nRow} = axialToOffset(neighborQ, neighborR);
+                    const neighborId = `${nCol},${nRow}`;
+                    
+                    // If neighbor is not in same region, this is a boundary edge
+                    if (!regionSet.has(neighborId)) {
+                        halfEdges.push({q, r, edgeIndex: i});
+                        console.log(`Boundary edge: hex(${q},${r}) edge ${i} -> neighbor(${neighborQ},${neighborR}) not in region`);
+                    }
+                }
+            }
+            
+            return halfEdges;
+        }
+        
+        // Test the algorithm
+        const edges = findBoundaryHalfEdges(testSet);
+        console.log(`Found ${edges.length} boundary edges:`, edges);
+        
+        // Expected: 2x2 square should have 12 boundary edges (3 per hex for outer edges)
+        if (edges.length === 12) {
+            console.log('✓ Correct number of boundary edges found!');
+        } else {
+            console.log(`✗ Expected 12 boundary edges, got ${edges.length}`);
+        }
+    </script>
+</body>
+</html>
