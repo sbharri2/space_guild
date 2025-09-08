@@ -330,6 +330,7 @@ const gameState = {
         maxZoom: 2,
         // Touch gesture state
         isPinching: false,
+        isPanning: false,
         suppressTapUntil: 0
     },
     animation: {
@@ -3952,8 +3953,9 @@ function initializeEventHandlers() {
         }
     });
 
-    // Pinch-to-zoom on the map (SVG inside #ascii-display)
+    // Pinch-to-zoom and pan/drag on the map (SVG inside #ascii-display)
     setupPinchZoomHandlers();
+    setupPanHandlers();
 
     // iOS Safari: prevent browser pinch-zoom gestures so our map zoom handles it
     try {
@@ -4133,7 +4135,7 @@ function setupPinchZoomHandlers() {
     // iOS Safari-optimized touch start
     container.addEventListener('touchstart', (e) => {
         log('touchstart, touches:', e.touches.length);
-        if (e.touches.length === 2) {
+        if (e.touches.length === 2 && !gameState.ui.isPanning) {
             try {
                 // Prevent browser from starting native pinch-zoom - critical for iOS
                 e.preventDefault();
@@ -4264,6 +4266,193 @@ function setupPinchZoomHandlers() {
     }, { passive: false });
 
     log('Pinch zoom handlers setup complete');
+}
+
+function setupPanHandlers() {
+    const container = document.querySelector('.main-display');
+    if (!container) return;
+    
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+    let scrollStart = { x: 0, y: 0 };
+    let lastTouchTime = 0;
+    let velocityX = 0;
+    let velocityY = 0;
+    let lastPanX = 0;
+    let lastPanY = 0;
+    let panAnimationFrame = null;
+    
+    function startPan(clientX, clientY) {
+        // Don't pan if pinching or if tap was recently suppressed
+        if (gameState.ui.isPinching || (gameState.ui.suppressTapUntil && Date.now() < gameState.ui.suppressTapUntil)) {
+            return false;
+        }
+        
+        isPanning = true;
+        gameState.ui.isPanning = true;
+        panStart.x = clientX;
+        panStart.y = clientY;
+        scrollStart.x = container.scrollLeft || 0;
+        scrollStart.y = container.scrollTop || 0;
+        lastPanX = clientX;
+        lastPanY = clientY;
+        lastTouchTime = Date.now();
+        velocityX = 0;
+        velocityY = 0;
+        
+        // Cancel any ongoing momentum animation
+        if (panAnimationFrame) {
+            cancelAnimationFrame(panAnimationFrame);
+            panAnimationFrame = null;
+        }
+        
+        // Add panning class for visual feedback
+        container.style.cursor = 'grabbing';
+        
+        console.log('[Pan] Started at', clientX, clientY);
+        return true;
+    }
+    
+    function updatePan(clientX, clientY) {
+        if (!isPanning) return;
+        
+        const currentTime = Date.now();
+        const timeDelta = Math.max(1, currentTime - lastTouchTime);
+        
+        const deltaX = clientX - panStart.x;
+        const deltaY = clientY - panStart.y;
+        
+        // Calculate velocity for momentum
+        const instantVelocityX = (clientX - lastPanX) / timeDelta;
+        const instantVelocityY = (clientY - lastPanY) / timeDelta;
+        
+        // Smooth velocity with exponential moving average
+        velocityX = velocityX * 0.5 + instantVelocityX * 0.5;
+        velocityY = velocityY * 0.5 + instantVelocityY * 0.5;
+        
+        lastPanX = clientX;
+        lastPanY = clientY;
+        lastTouchTime = currentTime;
+        
+        // Apply the pan by scrolling (inverted for natural scrolling)
+        const newScrollLeft = scrollStart.x - deltaX;
+        const newScrollTop = scrollStart.y - deltaY;
+        
+        container.scrollTo({
+            left: newScrollLeft,
+            top: newScrollTop,
+            behavior: 'instant'
+        });
+    }
+    
+    function endPan() {
+        if (!isPanning) return;
+        
+        isPanning = false;
+        gameState.ui.isPanning = false;
+        container.style.cursor = '';
+        
+        // Apply momentum if velocity is significant
+        if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
+            applyMomentum();
+        }
+        
+        console.log('[Pan] Ended with velocity', velocityX, velocityY);
+    }
+    
+    function applyMomentum() {
+        const friction = 0.95; // Deceleration factor
+        const minVelocity = 0.1;
+        
+        function animateMomentum() {
+            if (Math.abs(velocityX) < minVelocity && Math.abs(velocityY) < minVelocity) {
+                velocityX = 0;
+                velocityY = 0;
+                panAnimationFrame = null;
+                return;
+            }
+            
+            // Apply velocity to scroll position
+            container.scrollLeft -= velocityX * 10;
+            container.scrollTop -= velocityY * 10;
+            
+            // Apply friction
+            velocityX *= friction;
+            velocityY *= friction;
+            
+            panAnimationFrame = requestAnimationFrame(animateMomentum);
+        }
+        
+        animateMomentum();
+    }
+    
+    // Touch handlers for mobile (including iOS Safari)
+    container.addEventListener('touchstart', (e) => {
+        // Only handle single touch for panning (pinch uses 2 touches)
+        if (e.touches.length === 1 && !gameState.ui.isPinching) {
+            const touch = e.touches[0];
+            if (startPan(touch.clientX, touch.clientY)) {
+                // Don't prevent default - let other handlers work too
+            }
+        } else if (e.touches.length > 1 && isPanning) {
+            // Stop panning if user starts pinching
+            endPan();
+        }
+    }, { passive: false });
+    
+    container.addEventListener('touchmove', (e) => {
+        if (isPanning && e.touches.length === 1 && !gameState.ui.isPinching) {
+            const touch = e.touches[0];
+            updatePan(touch.clientX, touch.clientY);
+        } else if (e.touches.length > 1 && isPanning) {
+            // Stop panning if user starts pinching
+            endPan();
+        }
+    }, { passive: false });
+    
+    container.addEventListener('touchend', (e) => {
+        // End pan if no touches remain
+        if (isPanning && e.touches.length === 0) {
+            endPan();
+        }
+    }, { passive: false });
+    
+    container.addEventListener('touchcancel', () => {
+        if (isPanning) {
+            endPan();
+        }
+    }, { passive: false });
+    
+    // Mouse handlers for desktop
+    container.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // Left mouse button only
+            if (startPan(e.clientX, e.clientY)) {
+                e.preventDefault();
+            }
+        }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (isPanning) {
+            e.preventDefault();
+            updatePan(e.clientX, e.clientY);
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isPanning) {
+            endPan();
+        }
+    });
+    
+    // Prevent context menu on right-click during pan
+    container.addEventListener('contextmenu', (e) => {
+        if (isPanning) {
+            e.preventDefault();
+        }
+    });
+    
+    console.log('[Pan] Pan handlers setup complete');
 }
 
 // Button-based zoom controls (keeps viewport center stable)
