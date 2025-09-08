@@ -3962,23 +3962,102 @@ function initializeEventHandlers() {
         document.addEventListener('gestureend', (e) => { e.preventDefault(); }, { passive: false });
     } catch (e) { /* ignore */ }
 
-    // Touch support for zoom buttons (iOS sometimes delays click)
+    // Enhanced touch support for zoom buttons (iOS Safari optimized)
+    setupZoomButtonHandlers();
+}
+
+function setupZoomButtonHandlers() {
     const zin = document.getElementById('zoom-in-btn');
     const zout = document.getElementById('zoom-out-btn');
-    if (zin) {
-        const handler = (e) => { e.preventDefault(); e.stopPropagation(); zoomIn(); };
-        zin.addEventListener('click', handler, { passive: false });
-        zin.addEventListener('touchstart', handler, { passive: false });
-        zin.addEventListener('touchend', handler, { passive: false });
-        zin.addEventListener('pointerup', handler, { passive: false });
+    
+    function setupButton(button, zoomFunction, buttonName) {
+        if (!button) return;
+        
+        let isTouching = false;
+        let touchStartTime = 0;
+        let hasResponded = false;
+        
+        // iOS Safari optimized touch handling
+        function handleTouchStart(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            isTouching = true;
+            touchStartTime = Date.now();
+            hasResponded = false;
+            
+            // Add active visual state
+            button.style.transform = 'scale(0.90)';
+            button.style.background = 'rgba(0, 255, 65, 0.2)';
+            
+            console.log(`[Zoom] ${buttonName} touch started`);
+        }
+        
+        function handleTouchEnd(e) {
+            if (!isTouching) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Remove active visual state
+            button.style.transform = 'scale(1.0)';
+            button.style.background = 'rgba(0, 0, 0, 0.8)';
+            
+            // Only trigger zoom if it was a quick touch and we haven't responded yet
+            if (!hasResponded && touchDuration < 500) {
+                hasResponded = true;
+                console.log(`[Zoom] ${buttonName} activated via touch`);
+                
+                // Small delay to ensure touch is complete
+                setTimeout(() => {
+                    zoomFunction();
+                }, 10);
+            }
+            
+            isTouching = false;
+        }
+        
+        function handleTouchCancel(e) {
+            // Reset state on touch cancel
+            isTouching = false;
+            hasResponded = false;
+            button.style.transform = 'scale(1.0)';
+            button.style.background = 'rgba(0, 0, 0, 0.8)';
+            console.log(`[Zoom] ${buttonName} touch cancelled`);
+        }
+        
+        function handleClick(e) {
+            // Only handle click if no touch interaction occurred
+            if (!hasResponded && !isTouching) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(`[Zoom] ${buttonName} activated via click`);
+                zoomFunction();
+            }
+        }
+        
+        // iOS Safari: touchstart is most reliable
+        button.addEventListener('touchstart', handleTouchStart, { passive: false });
+        button.addEventListener('touchend', handleTouchEnd, { passive: false });
+        button.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+        
+        // Fallback for non-touch devices
+        button.addEventListener('click', handleClick, { passive: false });
+        
+        // Prevent double handling
+        button.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'touch') {
+                // Touch events will handle this
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        console.log(`[Zoom] ${buttonName} handlers setup complete`);
     }
-    if (zout) {
-        const handler = (e) => { e.preventDefault(); e.stopPropagation(); zoomOut(); };
-        zout.addEventListener('click', handler, { passive: false });
-        zout.addEventListener('touchstart', handler, { passive: false });
-        zout.addEventListener('touchend', handler, { passive: false });
-        zout.addEventListener('pointerup', handler, { passive: false });
-    }
+    
+    setupButton(zin, zoomIn, 'Zoom In');
+    setupButton(zout, zoomOut, 'Zoom Out');
 }
 
 function applyMapZoomTransform() {
@@ -3997,6 +4076,11 @@ function setupPinchZoomHandlers() {
     const container = document.querySelector('.main-display');
     if (!container) return;
     let pinch = null;
+    let debugMode = true; // Set to true to enable touch debugging
+
+    function log(...args) {
+        if (debugMode) console.log('[Zoom Debug]', ...args);
+    }
 
     function getDistance(t1, t2) {
         const dx = t2.clientX - t1.clientX;
@@ -4007,54 +4091,179 @@ function setupPinchZoomHandlers() {
         return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
     }
 
-    container.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-            // Prevent browser from starting native pinch-zoom
-            e.preventDefault();
-            const [t1, t2] = e.touches;
-            const startDist = getDistance(t1, t2);
-            const mid = getMidpoint(t1, t2);
+    // iOS Safari-optimized coordinate calculation
+    function getContainerRelativePosition(clientX, clientY, container) {
+        try {
             const rect = container.getBoundingClientRect();
-            gameState.ui.isPinching = true;
-            pinch = {
-                startDist,
-                startScale: gameState.ui.zoomScale || 1,
-                midX: mid.x - rect.left,
-                midY: mid.y - rect.top
+            // iOS Safari sometimes has timing issues with getBoundingClientRect
+            if (!rect || rect.width === 0 || rect.height === 0) {
+                log('Invalid container rect, retrying');
+                // Small delay and retry for iOS Safari
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        const retryRect = container.getBoundingClientRect();
+                        resolve({
+                            x: clientX - retryRect.left,
+                            y: clientY - retryRect.top,
+                            rect: retryRect
+                        });
+                    }, 10);
+                });
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top,
+                rect: rect
             };
+        } catch (err) {
+            log('Error getting container position:', err);
+            // Fallback to simple calculation
+            return { x: clientX, y: clientY, rect: { left: 0, top: 0 } };
+        }
+    }
+
+    function endPinch(reason = 'unknown') {
+        log('Ending pinch:', reason);
+        pinch = null;
+        gameState.ui.isPinching = false;
+        // Suppress taps/clicks that may follow immediately after pinch (iOS Safari needs longer delay)
+        gameState.ui.suppressTapUntil = Date.now() + 500;
+    }
+
+    // iOS Safari-optimized touch start
+    container.addEventListener('touchstart', (e) => {
+        log('touchstart, touches:', e.touches.length);
+        if (e.touches.length === 2) {
+            try {
+                // Prevent browser from starting native pinch-zoom - critical for iOS
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const [t1, t2] = e.touches;
+                const startDist = getDistance(t1, t2);
+                
+                // Validate minimum distance to avoid false positives
+                if (startDist < 20) {
+                    log('Touch points too close, ignoring pinch');
+                    return;
+                }
+                
+                const mid = getMidpoint(t1, t2);
+                const containerPos = getContainerRelativePosition(mid.x, mid.y, container);
+                
+                // Handle async coordinate calculation if needed for iOS Safari
+                if (containerPos instanceof Promise) {
+                    containerPos.then(pos => {
+                        if (gameState.ui.isPinching) { // Only update if still pinching
+                            pinch.midX = pos.x;
+                            pinch.midY = pos.y;
+                        }
+                    });
+                    // Use simple fallback for immediate use
+                    const rect = container.getBoundingClientRect();
+                    pinch = {
+                        startDist,
+                        startScale: gameState.ui.zoomScale || 1,
+                        midX: mid.x - rect.left,
+                        midY: mid.y - rect.top,
+                        startTime: Date.now()
+                    };
+                } else {
+                    pinch = {
+                        startDist,
+                        startScale: gameState.ui.zoomScale || 1,
+                        midX: containerPos.x,
+                        midY: containerPos.y,
+                        startTime: Date.now()
+                    };
+                }
+                
+                gameState.ui.isPinching = true;
+                log('Pinch started, startDist:', startDist, 'startScale:', pinch.startScale);
+            } catch (err) {
+                log('Error in touchstart:', err);
+            }
+        } else if (e.touches.length > 2 && pinch) {
+            // More than 2 touches, end current pinch
+            endPinch('too many touches');
         }
     }, { passive: false });
 
+    // iOS Safari-optimized touch move
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && pinch) {
-            e.preventDefault();
-            const [t1, t2] = e.touches;
-            const curDist = getDistance(t1, t2);
-            const newScaleUnclamped = pinch.startScale * (curDist / pinch.startDist);
-            const newScale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, newScaleUnclamped));
-            const prevScale = gameState.ui.zoomScale || 1;
-            gameState.ui.zoomScale = newScale;
-            applyMapZoomTransform();
-            // Keep the pinch midpoint stable by adjusting scroll
-            const sx = container.scrollLeft;
-            const sy = container.scrollTop;
-            const contentX = (sx + pinch.midX) / prevScale;
-            const contentY = (sy + pinch.midY) / prevScale;
-            const newScrollLeft = contentX * newScale - pinch.midX;
-            const newScrollTop = contentY * newScale - pinch.midY;
-            container.scrollTo({ left: newScrollLeft, top: newScrollTop });
+            try {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const [t1, t2] = e.touches;
+                const curDist = getDistance(t1, t2);
+                
+                // Validate distance to prevent erratic behavior
+                if (curDist < 10 || !isFinite(curDist)) {
+                    log('Invalid distance, skipping frame');
+                    return;
+                }
+                
+                const distanceRatio = curDist / pinch.startDist;
+                const newScaleUnclamped = pinch.startScale * distanceRatio;
+                const newScale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, newScaleUnclamped));
+                
+                // Only update if there's a meaningful change
+                if (Math.abs(newScale - (gameState.ui.zoomScale || 1)) < 0.01) {
+                    return;
+                }
+                
+                const prevScale = gameState.ui.zoomScale || 1;
+                gameState.ui.zoomScale = newScale;
+                applyMapZoomTransform();
+                
+                // Keep the pinch midpoint stable by adjusting scroll
+                const sx = container.scrollLeft || 0;
+                const sy = container.scrollTop || 0;
+                const contentX = (sx + pinch.midX) / prevScale;
+                const contentY = (sy + pinch.midY) / prevScale;
+                const newScrollLeft = contentX * newScale - pinch.midX;
+                const newScrollTop = contentY * newScale - pinch.midY;
+                
+                // Use requestAnimationFrame for smoother scrolling on iOS
+                requestAnimationFrame(() => {
+                    container.scrollTo({ left: newScrollLeft, top: newScrollTop });
+                });
+                
+                log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
+            } catch (err) {
+                log('Error in touchmove:', err);
+                endPinch('touchmove error');
+            }
+        } else if (pinch && e.touches.length !== 2) {
+            endPinch('touch count changed during move');
         }
     }, { passive: false });
 
+    // iOS Safari-optimized touch end
     container.addEventListener('touchend', (e) => {
-        if (e.touches.length < 2) {
-            // End pinch when fewer than two touches remain
-            pinch = null;
-            gameState.ui.isPinching = false;
-            // Suppress taps/clicks that may follow immediately after pinch
-            gameState.ui.suppressTapUntil = Date.now() + 300;
+        log('touchend, remaining touches:', e.touches.length);
+        if (e.touches.length < 2 && pinch) {
+            // Prevent default for iOS Safari consistency
+            try {
+                e.preventDefault();
+            } catch (err) {
+                log('Could not preventDefault on touchend');
+            }
+            endPinch('touch ended');
         }
-    }, { passive: true });
+    }, { passive: false });
+
+    // Handle touch cancel (important for iOS Safari)
+    container.addEventListener('touchcancel', (e) => {
+        log('touchcancel');
+        if (pinch) {
+            endPinch('touch cancelled');
+        }
+    }, { passive: false });
+
+    log('Pinch zoom handlers setup complete');
 }
 
 // Button-based zoom controls (keeps viewport center stable)

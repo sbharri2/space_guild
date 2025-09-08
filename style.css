@@ -56,6 +56,7 @@ html, body {
     padding: 20px;
     position: relative;
     -webkit-overflow-scrolling: touch;
+    touch-action: none; /* Prevent default touch handling for custom zoom */
 }
 
 .ascii-text {
@@ -78,6 +79,7 @@ html, body {
 #map-zoom {
     display: inline-block;
     transform-origin: 0 0;
+    touch-action: none; /* Allow custom zoom gestures */
 }
 
 /* ASCII Map Container */
@@ -821,6 +823,7 @@ html, body {
     display: block;
     margin: 0 auto;
     background: transparent;
+    touch-action: none; /* Allow custom touch handling */
 }
 
 .hex-cell {
