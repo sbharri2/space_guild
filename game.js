@@ -4096,6 +4096,7 @@ function setupBottomNavButtons() {
     const btnShip = document.getElementById('nav-ship-btn');
     const btnGuild = document.getElementById('nav-guild-btn');
     const btnCrisis = document.getElementById('nav-crisis-btn');
+    const btnLog = document.getElementById('nav-log-btn');
     const bind = (el, fn) => {
         if (!el) return;
         const h = (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
@@ -4108,6 +4109,7 @@ function setupBottomNavButtons() {
     bind(btnShip, () => updateScreen('ship'));
     bind(btnGuild, () => updateScreen('guild'));
     bind(btnCrisis, () => updateScreen('crisis'));
+    bind(btnLog, () => showDiscoveryLog());
 }
 
 function applyMapZoomTransform() {
