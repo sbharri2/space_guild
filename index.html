@@ -228,25 +228,13 @@
             </div>
         </div>
 
-        <!-- Bottom Tab Bar -->
-        <nav class="tab-bar">
-            <button class="tab-btn active" data-screen="map">
-                <span class="tab-icon">◉</span>
-                <span class="tab-label">MAP</span>
-            </button>
-            <button class="tab-btn" data-screen="ship">
-                <span class="tab-icon">▶</span>
-                <span class="tab-label">SHIP</span>
-            </button>
-            <button class="tab-btn" data-screen="guild">
-                <span class="tab-icon">⬢</span>
-                <span class="tab-label">GUILD</span>
-            </button>
-            <button class="tab-btn" data-screen="crisis">
-                <span class="tab-icon">!</span>
-                <span class="tab-label">CRISIS</span>
-            </button>
-        </nav>
+        <!-- Bottom Floating Nav Buttons -->
+        <div class="bottom-fab-bar">
+            <button class="fab-btn" title="Map" onclick="updateScreen('map')">⤭</button>
+            <button class="fab-btn" title="Ship" onclick="updateScreen('ship')">▲</button>
+            <button class="fab-btn" title="Guild" onclick="updateScreen('guild')">⬢</button>
+            <button class="fab-btn" title="Crisis" onclick="updateScreen('crisis')">!</button>
+        </div>
 
         <!-- Loading Overlay -->
         <div id="loading" class="loading-overlay">

@@ -4698,10 +4698,14 @@ function updateScreen(screenName) {
 
 // Update static status panel
 function updateStatusPanel() {
-    document.getElementById('current-location').textContent = gameState.player.location;
-    document.getElementById('action-points').textContent = `${gameState.player.actionPoints}/${gameState.player.maxActionPoints}`;
-    document.getElementById('credits').textContent = gameState.player.credits.toLocaleString();
-    document.getElementById('ship-name').textContent = gameState.player.shipName;
+    const locEl = document.getElementById('current-location');
+    const apEl = document.getElementById('action-points');
+    const crEl = document.getElementById('credits');
+    const shipEl = document.getElementById('ship-name');
+    if (locEl) locEl.textContent = gameState.player.location;
+    if (apEl) apEl.textContent = `${gameState.player.actionPoints}/${gameState.player.maxActionPoints}`;
+    if (crEl) crEl.textContent = gameState.player.credits.toLocaleString();
+    if (shipEl) shipEl.textContent = gameState.player.shipName;
 }
 
 // Update action buttons based on current screen
