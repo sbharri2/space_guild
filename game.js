@@ -4157,13 +4157,14 @@ function setupPinchZoomHandlers() {
         window.lastTouchCount = e.touches.length;
         debugLog('Pinch TouchStart', `${e.touches.length} touches`);
         
-        if (e.touches.length === 2) {
-            // Two fingers = pinch zoom (works in both modes)
-            // Stop any ongoing pan first
+        if (e.touches.length >= 2) {
+            // Two or more fingers = pinch zoom (works in both modes)
+            // Force stop any ongoing pan
             if (gameState.ui.isPanning) {
-                // Let pan handler stop it
-                debugLog('Pinch Blocked', 'pan active');
-                return;
+                // Force end pan to allow pinch
+                debugLog('Pinch Override', 'stopping pan');
+                // Signal pan handlers to stop
+                gameState.ui.isPanning = false;
             }
             
             try {
@@ -4174,8 +4175,9 @@ function setupPinchZoomHandlers() {
                 const [t1, t2] = e.touches;
                 const startDist = getDistance(t1, t2);
                 
-                // Validate minimum distance to avoid false positives
-                if (startDist < 20) {
+                // More lenient minimum distance for iOS Safari
+                if (startDist < 10) {
+                    debugLog('Pinch Skip', `dist too small: ${startDist.toFixed(0)}`);
                     log('Touch points too close, ignoring pinch');
                     return;
                 }
@@ -4219,12 +4221,36 @@ function setupPinchZoomHandlers() {
         } else if (e.touches.length > 2 && pinch) {
             // More than 2 touches, end current pinch
             endPinch('too many touches');
+        } else if (e.touches.length >= 2 && !pinch && !gameState.ui.isPinching) {
+            // Fallback: try to start pinch even if main detection missed it
+            debugLog('Pinch Fallback', 'retry detection');
+            try {
+                e.preventDefault();
+                const [t1, t2] = e.touches;
+                const startDist = getDistance(t1, t2);
+                
+                if (startDist >= 10) {
+                    const mid = getMidpoint(t1, t2);
+                    const rect = container.getBoundingClientRect();
+                    gameState.ui.isPinching = true;
+                    pinch = {
+                        startDist,
+                        startScale: gameState.ui.zoomScale || 1,
+                        midX: mid.x - rect.left,
+                        midY: mid.y - rect.top,
+                        startTime: Date.now()
+                    };
+                    debugLog('Pinch Fallback Start', `dist: ${startDist.toFixed(0)}`);
+                }
+            } catch (err) {
+                debugLog('Pinch Fallback Error', err.message);
+            }
         }
     }, { passive: false });
 
     // iOS Safari-optimized touch move - handles pinch zoom only
     container.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 2 && pinch) {
+        if (e.touches.length >= 2 && pinch) {
             // Two finger pinch zoom
             try {
                 e.preventDefault();
@@ -4271,8 +4297,31 @@ function setupPinchZoomHandlers() {
                 log('Error in touchmove:', err);
                 endPinch('touchmove error');
             }
-        } else if (pinch && e.touches.length !== 2) {
+        } else if (pinch && e.touches.length < 2) {
             endPinch('touch count changed during move');
+        } else if (e.touches.length >= 2 && !pinch && !gameState.ui.isPinching) {
+            // Fallback: try to start pinch during move if we missed touchstart
+            debugLog('Pinch Move Fallback', 'starting during move');
+            try {
+                const [t1, t2] = e.touches;
+                const startDist = getDistance(t1, t2);
+                
+                if (startDist >= 10) {
+                    const mid = getMidpoint(t1, t2);
+                    const rect = container.getBoundingClientRect();
+                    gameState.ui.isPinching = true;
+                    pinch = {
+                        startDist,
+                        startScale: gameState.ui.zoomScale || 1,
+                        midX: mid.x - rect.left,
+                        midY: mid.y - rect.top,
+                        startTime: Date.now()
+                    };
+                    debugLog('Pinch Move Start', `dist: ${startDist.toFixed(0)}`);
+                }
+            } catch (err) {
+                debugLog('Move Fallback Error', err.message);
+            }
         }
     }, { passive: false });
 
