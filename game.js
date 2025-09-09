@@ -2388,6 +2388,7 @@ function createRandomSystem(x, y, z) {
         { type: 'mining', weight: 20, names: ['Mining Station', 'Ore Processing', 'Extraction Facility', 'Mineral Works'] },
         { type: 'frontier', weight: 15, names: ['Frontier Outpost', 'Border Station', 'Remote Colony', 'Edge Settlement'] },
         { type: 'research', weight: 10, names: ['Research Station', 'Science Outpost', 'Lab Complex', 'Observatory'] },
+        { type: 'spacestation', weight: 12, names: ['Space Station', 'Orbital Station', 'Trade Station', 'Starport'] },
         { type: 'pirate', weight: 8, names: ['Pirate Haven', 'Smuggler Base', 'Rogue Station', 'Outlaw Port'] },
         { type: 'nexus', weight: 5, names: ['Nexus Station', 'Trade Hub', 'Commerce Gateway', 'Exchange Center'] },
         { type: 'blackhole', weight: 2, names: ['Void Rift', 'Dark Anomaly', 'Singularity', 'Event Horizon'] }
@@ -2484,6 +2485,9 @@ function createSystemGraphics(x, y, systemData) {
         case 'hub':
         case 'research':
             return createResearchStation(x, y, systemData.name, '#00AAFF');
+        case 'spacestation':
+        case 'station':
+            return createSpaceStationSystem(x, y, systemData.name);
         case 'blackhole':
             return createBlackHoleSystem(x, y, systemData.name, '#440044');
         case 'industrial':
@@ -2499,6 +2503,17 @@ function createSystemGraphics(x, y, systemData) {
         default:
             return createGenericSystem(x, y, systemData.name, '#FFFFFF');
     }
+}
+
+// Space Station — uses raster asset for the station icon
+function createSpaceStationSystem(x, y, name) {
+    const size = 36; // px
+    const half = size / 2;
+    const href = 'assets/space_station.PNG?v=20250907a';
+    // Group is non-interactive (parent systems group already has pointer-events none)
+    return `<g class="solar-system spacestation" data-system="${name}">
+              <image href="${href}" x="${x - half}" y="${y - half}" width="${size}" height="${size}" opacity="0.95" />
+            </g>`;
 }
 
 // Calculate the center point of a hex cell
@@ -3469,6 +3484,8 @@ function getNodeSymbol(type) {
         homeworld: '★',
         outpost: '●',
         hub: '◈',
+        spacestation: '■',
+        station: '■',
         ruins: '◆',
         station: '■',
         planet: '◉'
@@ -9737,4 +9754,3 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
-
