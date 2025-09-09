@@ -4097,7 +4097,7 @@ function setupPinchZoomHandlers() {
     const container = document.querySelector('.main-display');
     if (!container) return;
     let pinch = null;
-    let debugMode = true; // Set to true to enable touch debugging
+    let debugMode = false; // Set to true to enable touch debugging
 
     function log(...args) {
         if (debugMode) console.log('[Zoom Debug]', ...args);
@@ -4151,15 +4151,16 @@ function setupPinchZoomHandlers() {
         gameState.ui.suppressTapUntil = Date.now() + 500;
     }
 
-    // iOS Safari-optimized touch start - handles both pinch and pan
+    // iOS Safari-optimized touch start - handles pinch zoom only
     container.addEventListener('touchstart', (e) => {
         log('touchstart, touches:', e.touches.length, 'mode:', gameState.ui.mapMode);
         
         if (e.touches.length === 2) {
             // Two fingers = pinch zoom (works in both modes)
             // Stop any ongoing pan first
-            if (isPanning) {
-                endPan();
+            if (gameState.ui.isPanning) {
+                // Let pan handler stop it
+                return;
             }
             
             try {
@@ -4211,23 +4212,13 @@ function setupPinchZoomHandlers() {
             } catch (err) {
                 log('Error in touchstart:', err);
             }
-        } else if (e.touches.length === 1 && gameState.ui.mapMode === 'move' && !gameState.ui.isPinching) {
-            // Single finger in move mode = pan (only if not already pinching)
-            const touch = e.touches[0];
-            if (startPan(touch.clientX, touch.clientY)) {
-                e.preventDefault();
-                log('Pan started from consolidated handler');
-            }
         } else if (e.touches.length > 2 && pinch) {
             // More than 2 touches, end current pinch
             endPinch('too many touches');
-        } else if (e.touches.length > 1 && isPanning) {
-            // Starting multi-touch while panning, end pan
-            endPan();
         }
     }, { passive: false });
 
-    // iOS Safari-optimized touch move - handles both pinch and pan
+    // iOS Safari-optimized touch move - handles pinch zoom only
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && pinch) {
             // Two finger pinch zoom
@@ -4275,19 +4266,12 @@ function setupPinchZoomHandlers() {
                 log('Error in touchmove:', err);
                 endPinch('touchmove error');
             }
-        } else if (e.touches.length === 1 && isPanning && !gameState.ui.isPinching) {
-            // Single finger pan (only in move mode, handled by startPan check)
-            e.preventDefault();
-            const touch = e.touches[0];
-            updatePan(touch.clientX, touch.clientY);
         } else if (pinch && e.touches.length !== 2) {
             endPinch('touch count changed during move');
-        } else if (isPanning && e.touches.length !== 1) {
-            endPan();
         }
     }, { passive: false });
 
-    // iOS Safari-optimized touch end - handles both pinch and pan
+    // iOS Safari-optimized touch end - handles pinch zoom only
     container.addEventListener('touchend', (e) => {
         log('touchend, remaining touches:', e.touches.length);
         if (e.touches.length < 2 && pinch) {
@@ -4298,10 +4282,6 @@ function setupPinchZoomHandlers() {
                 log('Could not preventDefault on touchend');
             }
             endPinch('touch ended');
-        } else if (e.touches.length === 0 && isPanning) {
-            // End pan if no touches remain
-            e.preventDefault();
-            endPan();
         }
     }, { passive: false });
 
@@ -4310,9 +4290,6 @@ function setupPinchZoomHandlers() {
         log('touchcancel');
         if (pinch) {
             endPinch('touch cancelled');
-        }
-        if (isPanning) {
-            endPan();
         }
     }, { passive: false });
 
@@ -4469,49 +4446,47 @@ function setupPanHandlers() {
         animateMomentum();
     }
     
-    // DISABLED - Touch handling now consolidated in pinch zoom handlers
     // Touch handlers for mobile (including iOS Safari)
-    // container.addEventListener('touchstart', (e) => {
-    //     // In move mode, handle panning
-    //     if (gameState.ui.mapMode === 'move') {
-    //         // Only handle single touch for panning (pinch uses 2 touches)
-    //         if (e.touches.length === 1 && !gameState.ui.isPinching) {
-    //             const touch = e.touches[0];
-    //             if (startPan(touch.clientX, touch.clientY)) {
-    //                 // Prevent default to avoid any text selection or other browser behavior
-    //                 e.preventDefault();
-    //             }
-    //         } else if (e.touches.length > 1 && isPanning) {
-    //             // Stop panning if user starts pinching
-    //             endPan();
-    //         }
-    //     }
-    //     // In select mode, let hex selection work normally
-    // }, { passive: false });
+    container.addEventListener('touchstart', (e) => {
+        // In move mode, handle panning
+        if (gameState.ui.mapMode === 'move') {
+            // Only handle single touch for panning (pinch uses 2 touches)
+            if (e.touches.length === 1 && !gameState.ui.isPinching) {
+                const touch = e.touches[0];
+                if (startPan(touch.clientX, touch.clientY)) {
+                    // Prevent default to avoid any text selection or other browser behavior
+                    e.preventDefault();
+                }
+            } else if (e.touches.length > 1 && isPanning) {
+                // Stop panning if user starts pinching
+                endPan();
+            }
+        }
+        // In select mode, let hex selection work normally
+    }, { passive: false });
     
-    // DISABLED - Touch handling now consolidated in pinch zoom handlers  
-    // container.addEventListener('touchmove', (e) => {
-    //     if (isPanning && e.touches.length === 1 && !gameState.ui.isPinching) {
-    //         const touch = e.touches[0];
-    //         updatePan(touch.clientX, touch.clientY);
-    //     } else if (e.touches.length > 1 && isPanning) {
-    //         // Stop panning if user starts pinching
-    //         endPan();
-    //     }
-    // }, { passive: false });
+    container.addEventListener('touchmove', (e) => {
+        if (isPanning && e.touches.length === 1 && !gameState.ui.isPinching) {
+            const touch = e.touches[0];
+            updatePan(touch.clientX, touch.clientY);
+        } else if (e.touches.length > 1 && isPanning) {
+            // Stop panning if user starts pinching
+            endPan();
+        }
+    }, { passive: false });
     
-    // container.addEventListener('touchend', (e) => {
-    //     // End pan if no touches remain
-    //     if (isPanning && e.touches.length === 0) {
-    //         endPan();
-    //     }
-    // }, { passive: false });
+    container.addEventListener('touchend', (e) => {
+        // End pan if no touches remain
+        if (isPanning && e.touches.length === 0) {
+            endPan();
+        }
+    }, { passive: false });
     
-    // container.addEventListener('touchcancel', () => {
-    //     if (isPanning) {
-    //         endPan();
-    //     }
-    // }, { passive: false });
+    container.addEventListener('touchcancel', () => {
+        if (isPanning) {
+            endPan();
+        }
+    }, { passive: false });
     
     // Mouse handlers for desktop
     container.addEventListener('mousedown', (e) => {
