@@ -4178,8 +4178,20 @@ function setupPinchZoomHandlers() {
         log('Ending pinch:', reason);
         pinch = null;
         gameState.ui.isPinching = false;
-        // Suppress taps/clicks that may follow immediately after pinch (iOS Safari needs longer delay)
-        gameState.ui.suppressTapUntil = Date.now() + 500;
+        
+        // Shorter suppression - just enough to prevent accidental taps, not block new gestures
+        gameState.ui.suppressTapUntil = Date.now() + 100;
+        
+        // Force reset touch state for iOS Safari
+        window.lastTouchCount = 0;
+        
+        // Clear any stuck touch states with a small delay
+        setTimeout(() => {
+            debugLog('State Reset', 'touch state cleared');
+            updateDebugOverlay();
+        }, 50);
+        
+        debugLog('Pinch Ended', reason);
     }
 
     // iOS Safari-optimized touch start - handles pinch zoom only
@@ -4358,7 +4370,10 @@ function setupPinchZoomHandlers() {
 
     // iOS Safari-optimized touch end - handles pinch zoom only
     container.addEventListener('touchend', (e) => {
+        window.lastTouchCount = e.touches.length;
         log('touchend, remaining touches:', e.touches.length);
+        debugLog('Pinch TouchEnd', `${e.touches.length} touches remaining`);
+        
         if (e.touches.length < 2 && pinch) {
             // End pinch if less than 2 touches
             try {
@@ -4367,17 +4382,55 @@ function setupPinchZoomHandlers() {
                 log('Could not preventDefault on touchend');
             }
             endPinch('touch ended');
+        } else if (e.touches.length === 0) {
+            // All touches ended - force cleanup any stuck states
+            setTimeout(() => {
+                if (!gameState.ui.isPinching && !gameState.ui.isPanning) {
+                    window.lastTouchCount = 0;
+                    debugLog('Force Reset', 'all touches ended');
+                    updateDebugOverlay();
+                }
+            }, 30);
         }
     }, { passive: false });
 
     // Handle touch cancel (important for iOS Safari)
     container.addEventListener('touchcancel', (e) => {
         log('touchcancel');
+        debugLog('Touch Cancel', 'force cleanup');
         if (pinch) {
             endPinch('touch cancelled');
         }
+        // Force reset everything on cancel
+        window.lastTouchCount = 0;
+        gameState.ui.isPinching = false;
+        gameState.ui.isPanning = false;
+        
+        setTimeout(() => {
+            debugLog('Cancel Reset', 'all states cleared');
+            updateDebugOverlay();
+        }, 20);
     }, { passive: false });
 
+    // iOS Safari safety mechanism - periodic state cleanup
+    setInterval(() => {
+        // If we think we're pinching but have been for more than 3 seconds without movement, reset
+        if (gameState.ui.isPinching && pinch && pinch.startTime) {
+            const timeSinceStart = Date.now() - pinch.startTime;
+            if (timeSinceStart > 3000) {
+                debugLog('Timeout Reset', 'pinch too long');
+                endPinch('timeout cleanup');
+            }
+        }
+        
+        // If touch count doesn't match any active gestures, reset it
+        if (window.lastTouchCount > 0 && !gameState.ui.isPinching && !gameState.ui.isPanning) {
+            window.lastTouchCount = 0;
+            debugLog('Periodic Reset', 'touch count mismatch');
+            updateDebugOverlay();
+        }
+    }, 1000); // Check every second
+    
     log('Pinch zoom handlers setup complete');
 }
 
