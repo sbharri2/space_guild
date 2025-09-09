@@ -60,13 +60,18 @@
         <button class="floating-center-btn mode-btn" id="select-mode-btn" aria-label="Select Mode" title="Select Hexes" style="bottom: 240px;" onclick="setMapMode('select')">📍</button>
         
         <!-- Visual Debug Overlay -->
-        <div id="debug-overlay" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #00FF41; padding: 10px; font-size: 12px; border-radius: 5px; z-index: 9999; max-width: 300px; font-family: monospace;">
-            <div>Mode: <span id="debug-mode">move</span></div>
-            <div>Touches: <span id="debug-touches">0</span></div>
-            <div>Pan: <span id="debug-pan">inactive</span></div>
-            <div>Pinch: <span id="debug-pinch">inactive</span></div>
-            <div>Zoom: <span id="debug-zoom">1.0</span></div>
-            <div>Last Event: <span id="debug-event">none</span></div>
+        <div id="debug-overlay" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); color: #00FF41; padding: 8px; font-size: 10px; border-radius: 5px; z-index: 9999; max-width: 350px; font-family: monospace; line-height: 1.2;">
+            <div>Mode: <span id="debug-mode">move</span> | Touches: <span id="debug-touches">0</span></div>
+            <div>Pan: <span id="debug-pan">inactive</span> | Pinch: <span id="debug-pinch">inactive</span></div>
+            <div>Zoom: <span id="debug-zoom">1.0</span> | Prev: <span id="debug-prev-zoom">1.0</span></div>
+            <div>ScrollX: <span id="debug-scroll-x">0</span> | ScrollY: <span id="debug-scroll-y">0</span></div>
+            <div>ViewW: <span id="debug-view-w">0</span> | ViewH: <span id="debug-view-h">0</span></div>
+            <div>ContentX: <span id="debug-content-x">0</span> | ContentY: <span id="debug-content-y">0</span></div>
+            <div>NewScrollX: <span id="debug-new-scroll-x">0</span> | NewScrollY: <span id="debug-new-scroll-y">0</span></div>
+            <div>FingerDist: <span id="debug-finger-dist">0</span> | Ratio: <span id="debug-ratio">1.0</span></div>
+            <div>ActualX: <span id="debug-actual-x">0</span> | ActualY: <span id="debug-actual-y">0</span></div>
+            <div>DeltaX: <span id="debug-delta-x">0</span> | DeltaY: <span id="debug-delta-y">0</span></div>
+            <div>Timing: <span id="debug-timing">0</span>ms | Last Event: <span id="debug-event">none</span></div>
         </div>
         
         <!-- Developers Menu Popup -->
@@ -808,6 +813,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250907ze"></script>
+    <script src="game.js?v=20250909a"></script>
 </body>
 </html>

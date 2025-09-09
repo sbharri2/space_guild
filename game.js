@@ -4337,13 +4337,62 @@ function setupPinchZoomHandlers() {
                 const newScrollX = contentCenterX * newScale - viewportCenterX;
                 const newScrollY = contentCenterY * newScale - viewportCenterY;
                 
-                // Apply the scroll adjustment smoothly
+                // Log all the detailed zoom data
+                debugZoomData({
+                    prevScale: prevScale,
+                    newScale: newScale,
+                    ratio: distanceRatio,
+                    fingerDist: curDist,
+                    contentCenterX: contentCenterX,
+                    contentCenterY: contentCenterY,
+                    currentScrollX: currentScrollX,
+                    currentScrollY: currentScrollY,
+                    newScrollX: newScrollX,
+                    newScrollY: newScrollY,
+                    viewportCenterX: viewportCenterX,
+                    viewportCenterY: viewportCenterY
+                });
+                
+                // Apply the scroll adjustment and track actual results
+                const scrollStartTime = Date.now();
                 requestAnimationFrame(() => {
                     container.scrollTo({ 
                         left: newScrollX, 
                         top: newScrollY,
                         behavior: 'instant'
                     });
+                    
+                    // Check what actually happened after the scroll
+                    setTimeout(() => {
+                        const actualScrollX = container.scrollLeft || 0;
+                        const actualScrollY = container.scrollTop || 0;
+                        const deltaX = actualScrollX - newScrollX;
+                        const deltaY = actualScrollY - newScrollY;
+                        const timing = Date.now() - scrollStartTime;
+                        
+                        // Update debug with actual scroll results
+                        debugZoomData({
+                            ...{
+                                prevScale: prevScale,
+                                newScale: newScale,
+                                ratio: distanceRatio,
+                                fingerDist: curDist,
+                                contentCenterX: contentCenterX,
+                                contentCenterY: contentCenterY,
+                                currentScrollX: currentScrollX,
+                                currentScrollY: currentScrollY,
+                                newScrollX: newScrollX,
+                                newScrollY: newScrollY,
+                                viewportCenterX: viewportCenterX,
+                                viewportCenterY: viewportCenterY
+                            },
+                            actualScrollX: actualScrollX,
+                            actualScrollY: actualScrollY,
+                            deltaX: deltaX,
+                            deltaY: deltaY,
+                            timing: timing
+                        });
+                    }, 5); // Small delay to let scroll complete
                 });
                 
                 debugLog('Zoom Center', `scale: ${newScale.toFixed(2)} - centered on viewport`);
@@ -4450,11 +4499,32 @@ function updateDebugOverlay() {
     const debugPan = document.getElementById('debug-pan');
     const debugPinch = document.getElementById('debug-pinch');
     const debugZoom = document.getElementById('debug-zoom');
+    const debugPrevZoom = document.getElementById('debug-prev-zoom');
+    const debugScrollX = document.getElementById('debug-scroll-x');
+    const debugScrollY = document.getElementById('debug-scroll-y');
+    const debugViewW = document.getElementById('debug-view-w');
+    const debugViewH = document.getElementById('debug-view-h');
+    const debugContentX = document.getElementById('debug-content-x');
+    const debugContentY = document.getElementById('debug-content-y');
+    const debugNewScrollX = document.getElementById('debug-new-scroll-x');
+    const debugNewScrollY = document.getElementById('debug-new-scroll-y');
+    const debugFingerDist = document.getElementById('debug-finger-dist');
+    const debugRatio = document.getElementById('debug-ratio');
     
     if (debugMode) debugMode.textContent = gameState.ui.mapMode;
     if (debugPan) debugPan.textContent = gameState.ui.isPanning ? 'ACTIVE' : 'inactive';
     if (debugPinch) debugPinch.textContent = gameState.ui.isPinching ? 'ACTIVE' : 'inactive';
     if (debugZoom) debugZoom.textContent = (gameState.ui.zoomScale || 1).toFixed(2);
+    
+    // Update scroll and viewport info
+    const container = document.querySelector('.main-display');
+    if (container) {
+        const rect = container.getBoundingClientRect();
+        if (debugScrollX) debugScrollX.textContent = (container.scrollLeft || 0).toFixed(0);
+        if (debugScrollY) debugScrollY.textContent = (container.scrollTop || 0).toFixed(0);
+        if (debugViewW) debugViewW.textContent = rect.width.toFixed(0);
+        if (debugViewH) debugViewH.textContent = rect.height.toFixed(0);
+    }
 }
 
 function debugLog(event, details = '') {
@@ -4465,6 +4535,37 @@ function debugLog(event, details = '') {
     if (debugTouches && window.lastTouchCount !== undefined) {
         debugTouches.textContent = window.lastTouchCount;
     }
+    
+    updateDebugOverlay();
+}
+
+function debugZoomData(data) {
+    // Update all the detailed zoom debug fields
+    const debugPrevZoom = document.getElementById('debug-prev-zoom');
+    const debugContentX = document.getElementById('debug-content-x');
+    const debugContentY = document.getElementById('debug-content-y');
+    const debugNewScrollX = document.getElementById('debug-new-scroll-x');
+    const debugNewScrollY = document.getElementById('debug-new-scroll-y');
+    const debugFingerDist = document.getElementById('debug-finger-dist');
+    const debugRatio = document.getElementById('debug-ratio');
+    const debugActualX = document.getElementById('debug-actual-x');
+    const debugActualY = document.getElementById('debug-actual-y');
+    const debugDeltaX = document.getElementById('debug-delta-x');
+    const debugDeltaY = document.getElementById('debug-delta-y');
+    const debugTiming = document.getElementById('debug-timing');
+    
+    if (debugPrevZoom && data.prevScale) debugPrevZoom.textContent = data.prevScale.toFixed(2);
+    if (debugContentX && data.contentCenterX) debugContentX.textContent = data.contentCenterX.toFixed(0);
+    if (debugContentY && data.contentCenterY) debugContentY.textContent = data.contentCenterY.toFixed(0);
+    if (debugNewScrollX && data.newScrollX) debugNewScrollX.textContent = data.newScrollX.toFixed(0);
+    if (debugNewScrollY && data.newScrollY) debugNewScrollY.textContent = data.newScrollY.toFixed(0);
+    if (debugFingerDist && data.fingerDist) debugFingerDist.textContent = data.fingerDist.toFixed(0);
+    if (debugRatio && data.ratio) debugRatio.textContent = data.ratio.toFixed(3);
+    if (debugActualX && data.actualScrollX) debugActualX.textContent = data.actualScrollX.toFixed(0);
+    if (debugActualY && data.actualScrollY) debugActualY.textContent = data.actualScrollY.toFixed(0);
+    if (debugDeltaX && data.deltaX) debugDeltaX.textContent = data.deltaX.toFixed(0);
+    if (debugDeltaY && data.deltaY) debugDeltaY.textContent = data.deltaY.toFixed(0);
+    if (debugTiming && data.timing) debugTiming.textContent = data.timing;
     
     updateDebugOverlay();
 }
