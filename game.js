@@ -331,7 +331,9 @@ const gameState = {
         // Touch gesture state
         isPinching: false,
         isPanning: false,
-        suppressTapUntil: 0
+        suppressTapUntil: 0,
+        // Map interaction mode: 'move' or 'select'
+        mapMode: 'move'
     },
     animation: {
         isShipMoving: false,
@@ -3964,8 +3966,8 @@ function initializeEventHandlers() {
         document.addEventListener('gestureend', (e) => { e.preventDefault(); }, { passive: false });
     } catch (e) { /* ignore */ }
 
-    // Enhanced touch support for zoom buttons (iOS Safari optimized)
-    setupZoomButtonHandlers();
+    // No longer need zoom button handlers since we're using mode buttons
+    // setupZoomButtonHandlers();
 }
 
 function setupZoomButtonHandlers() {
@@ -4268,6 +4270,33 @@ function setupPinchZoomHandlers() {
     log('Pinch zoom handlers setup complete');
 }
 
+// Map mode switching
+function setMapMode(mode) {
+    if (mode !== 'move' && mode !== 'select') return;
+    
+    gameState.ui.mapMode = mode;
+    
+    // Update button states
+    const moveBtn = document.getElementById('move-mode-btn');
+    const selectBtn = document.getElementById('select-mode-btn');
+    
+    if (moveBtn && selectBtn) {
+        if (mode === 'move') {
+            moveBtn.classList.add('active');
+            selectBtn.classList.remove('active');
+        } else {
+            moveBtn.classList.remove('active');
+            selectBtn.classList.add('active');
+        }
+    }
+    
+    // Log mode change
+    console.log('[Map Mode] Switched to:', mode);
+}
+
+// Make setMapMode globally accessible
+window.setMapMode = setMapMode;
+
 function setupPanHandlers() {
     const container = document.querySelector('.main-display');
     if (!container) return;
@@ -4283,6 +4312,11 @@ function setupPanHandlers() {
     let panAnimationFrame = null;
     
     function startPan(clientX, clientY) {
+        // Only allow panning in move mode
+        if (gameState.ui.mapMode !== 'move') {
+            return false;
+        }
+        
         // Don't pan if pinching or if tap was recently suppressed
         if (gameState.ui.isPinching || (gameState.ui.suppressTapUntil && Date.now() < gameState.ui.suppressTapUntil)) {
             return false;
@@ -4388,16 +4422,21 @@ function setupPanHandlers() {
     
     // Touch handlers for mobile (including iOS Safari)
     container.addEventListener('touchstart', (e) => {
-        // Only handle single touch for panning (pinch uses 2 touches)
-        if (e.touches.length === 1 && !gameState.ui.isPinching) {
-            const touch = e.touches[0];
-            if (startPan(touch.clientX, touch.clientY)) {
-                // Don't prevent default - let other handlers work too
+        // In move mode, handle panning
+        if (gameState.ui.mapMode === 'move') {
+            // Only handle single touch for panning (pinch uses 2 touches)
+            if (e.touches.length === 1 && !gameState.ui.isPinching) {
+                const touch = e.touches[0];
+                if (startPan(touch.clientX, touch.clientY)) {
+                    // Prevent default to avoid any text selection or other browser behavior
+                    e.preventDefault();
+                }
+            } else if (e.touches.length > 1 && isPanning) {
+                // Stop panning if user starts pinching
+                endPan();
             }
-        } else if (e.touches.length > 1 && isPanning) {
-            // Stop panning if user starts pinching
-            endPan();
         }
+        // In select mode, let hex selection work normally
     }, { passive: false });
     
     container.addEventListener('touchmove', (e) => {
@@ -4593,6 +4632,19 @@ function updateScreen(screenName) {
     
     // Update action buttons based on screen
     updateActionButtons(screenName);
+    
+    // Show/hide mode buttons based on screen
+    const moveBtn = document.getElementById('move-mode-btn');
+    const selectBtn = document.getElementById('select-mode-btn');
+    if (moveBtn && selectBtn) {
+        if (screenName === 'map') {
+            moveBtn.style.display = 'block';
+            selectBtn.style.display = 'block';
+        } else {
+            moveBtn.style.display = 'none';
+            selectBtn.style.display = 'none';
+        }
+    }
     
     // Re-attach hex click handlers if on map screen
     if (screenName === 'map') {
@@ -5065,6 +5117,11 @@ function attachHexHandlers() {
 }
 
 function handleHexClick(e) {
+    // Only handle hex clicks in select mode
+    if (gameState.ui.mapMode !== 'select') {
+        return;
+    }
+    
     // Ignore if a pinch gesture is active or recently ended
     if (gameState.ui && (gameState.ui.isPinching || (gameState.ui.suppressTapUntil && Date.now() < gameState.ui.suppressTapUntil))) {
         return;

@@ -110,11 +110,24 @@ html, body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-/* Ensure zoom buttons sit above other overlays */
-#zoom-in-btn, #zoom-out-btn {
+/* Mode toggle buttons */
+.mode-btn {
     z-index: 1200;
     touch-action: manipulation;
     pointer-events: auto;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.mode-btn.active {
+    opacity: 1;
+    background: rgba(0, 255, 65, 0.15);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+    border-color: #00FF41;
+}
+
+.mode-btn:not(.active):hover {
+    opacity: 0.8;
 }
 
 .floating-center-btn:active {

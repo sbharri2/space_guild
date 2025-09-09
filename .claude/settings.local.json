@@ -16,7 +16,8 @@
       "Bash(git push:*)",
       "Bash(git diff:*)",
       "Bash(git merge:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

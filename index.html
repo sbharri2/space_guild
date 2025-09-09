@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Space Guilds</title>
-    <link rel="stylesheet" href="style.css?v=20250907v">
+    <link rel="stylesheet" href="style.css?v=20250907w">
     <script>
       (function(){
         try {
@@ -55,9 +55,9 @@
         <!-- Developers Menu Button -->
         <button class="floating-center-btn" id="dev-menu-btn" title="Developers Menu" style="bottom: 180px;">⚙</button>
 
-        <!-- Zoom Controls -->
-        <button class="floating-center-btn" id="zoom-in-btn" aria-label="Zoom In" title="Zoom In" style="bottom: 300px;" onclick="zoomIn()">+</button>
-        <button class="floating-center-btn" id="zoom-out-btn" aria-label="Zoom Out" title="Zoom Out" style="bottom: 240px;" onclick="zoomOut()">-</button>
+        <!-- Mode Toggle Controls -->
+        <button class="floating-center-btn mode-btn active" id="move-mode-btn" aria-label="Move Mode" title="Move/Pan Map" style="bottom: 300px;" onclick="setMapMode('move')">🗺️</button>
+        <button class="floating-center-btn mode-btn" id="select-mode-btn" aria-label="Select Mode" title="Select Hexes" style="bottom: 240px;" onclick="setMapMode('select')">📍</button>
         
         <!-- Developers Menu Popup -->
         <div id="dev-menu" class="dev-menu hidden">
@@ -811,6 +811,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250907v"></script>
+    <script src="game.js?v=20250907w"></script>
 </body>
 </html>
