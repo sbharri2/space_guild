@@ -4251,35 +4251,12 @@ function setupPinchZoomHandlers() {
                     return;
                 }
                 
-                const mid = getMidpoint(t1, t2);
-                const containerPos = getContainerRelativePosition(mid.x, mid.y, container);
-                
-                // Handle async coordinate calculation if needed for iOS Safari
-                if (containerPos instanceof Promise) {
-                    containerPos.then(pos => {
-                        if (gameState.ui.isPinching) { // Only update if still pinching
-                            pinch.midX = pos.x;
-                            pinch.midY = pos.y;
-                        }
-                    });
-                    // Use simple fallback for immediate use
-                    const rect = container.getBoundingClientRect();
-                    pinch = {
-                        startDist,
-                        startScale: gameState.ui.zoomScale || 1,
-                        midX: mid.x - rect.left,
-                        midY: mid.y - rect.top,
-                        startTime: Date.now()
-                    };
-                } else {
-                    pinch = {
-                        startDist,
-                        startScale: gameState.ui.zoomScale || 1,
-                        midX: containerPos.x,
-                        midY: containerPos.y,
-                        startTime: Date.now()
-                    };
-                }
+                // Simple pinch data - no midpoint needed since we're not adjusting scroll
+                pinch = {
+                    startDist,
+                    startScale: gameState.ui.zoomScale || 1,
+                    startTime: Date.now()
+                };
                 
                 gameState.ui.isPinching = true;
                 log('Pinch started, startDist:', startDist, 'startScale:', pinch.startScale);
@@ -4299,14 +4276,10 @@ function setupPinchZoomHandlers() {
                 const startDist = getDistance(t1, t2);
                 
                 if (startDist >= 10) {
-                    const mid = getMidpoint(t1, t2);
-                    const rect = container.getBoundingClientRect();
                     gameState.ui.isPinching = true;
                     pinch = {
                         startDist,
                         startScale: gameState.ui.zoomScale || 1,
-                        midX: mid.x - rect.left,
-                        midY: mid.y - rect.top,
                         startTime: Date.now()
                     };
                     debugLog('Pinch Fallback Start', `dist: ${startDist.toFixed(0)}`);
@@ -4347,18 +4320,9 @@ function setupPinchZoomHandlers() {
                 gameState.ui.zoomScale = newScale;
                 applyMapZoomTransform();
                 
-                // Keep the pinch midpoint stable by adjusting scroll
-                const sx = container.scrollLeft || 0;
-                const sy = container.scrollTop || 0;
-                const contentX = (sx + pinch.midX) / prevScale;
-                const contentY = (sy + pinch.midY) / prevScale;
-                const newScrollLeft = contentX * newScale - pinch.midX;
-                const newScrollTop = contentY * newScale - pinch.midY;
-                
-                // Use requestAnimationFrame for smoother scrolling on iOS
-                requestAnimationFrame(() => {
-                    container.scrollTo({ left: newScrollLeft, top: newScrollTop });
-                });
+                // DON'T adjust scroll during zoom - keep position stable
+                // Only zoom the scale, let pan handle position changes
+                debugLog('Zoom Only', `scale: ${newScale.toFixed(2)} - no position change`);
                 
                 log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
                 debugLog('Pinch Move', `scale: ${newScale.toFixed(2)}, ratio: ${distanceRatio.toFixed(2)}`);
@@ -4376,14 +4340,10 @@ function setupPinchZoomHandlers() {
                 const startDist = getDistance(t1, t2);
                 
                 if (startDist >= 10) {
-                    const mid = getMidpoint(t1, t2);
-                    const rect = container.getBoundingClientRect();
                     gameState.ui.isPinching = true;
                     pinch = {
                         startDist,
                         startScale: gameState.ui.zoomScale || 1,
-                        midX: mid.x - rect.left,
-                        midY: mid.y - rect.top,
                         startTime: Date.now()
                     };
                     debugLog('Pinch Move Start', `dist: ${startDist.toFixed(0)}`);
