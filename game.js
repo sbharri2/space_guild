@@ -3805,6 +3805,9 @@ function createSystemTooltip(systemId) {
 function init() {
     console.log('Initializing Space Guilds...');
     
+    // Initialize zoom logging system
+    initZoomLogging();
+    
     // Ensure player position is valid before anything else
     if (!gameState.player.hexLocation || 
         isNaN(gameState.player.hexLocation.x) || 
@@ -4338,7 +4341,7 @@ function setupPinchZoomHandlers() {
                 const newScrollY = contentCenterY * newScale - viewportCenterY;
                 
                 // Log all the detailed zoom data
-                debugZoomData({
+                const zoomData = {
                     prevScale: prevScale,
                     newScale: newScale,
                     ratio: distanceRatio,
@@ -4351,7 +4354,11 @@ function setupPinchZoomHandlers() {
                     newScrollY: newScrollY,
                     viewportCenterX: viewportCenterX,
                     viewportCenterY: viewportCenterY
-                });
+                };
+                debugZoomData(zoomData);
+                
+                // Log zoom behavior for analysis
+                logZoomBehavior('ZOOM_CALCULATING', zoomData);
                 
                 // Apply the scroll adjustment and track actual results
                 const scrollStartTime = Date.now();
@@ -4371,26 +4378,27 @@ function setupPinchZoomHandlers() {
                         const timing = Date.now() - scrollStartTime;
                         
                         // Update debug with actual scroll results
-                        debugZoomData({
-                            ...{
-                                prevScale: prevScale,
-                                newScale: newScale,
-                                ratio: distanceRatio,
-                                fingerDist: curDist,
-                                contentCenterX: contentCenterX,
-                                contentCenterY: contentCenterY,
-                                currentScrollX: currentScrollX,
-                                currentScrollY: currentScrollY,
-                                newScrollX: newScrollX,
-                                newScrollY: newScrollY,
-                                viewportCenterX: viewportCenterX,
-                                viewportCenterY: viewportCenterY
-                            },
+                        const actualZoomData = {
+                            ...zoomData,
                             actualScrollX: actualScrollX,
                             actualScrollY: actualScrollY,
                             deltaX: deltaX,
                             deltaY: deltaY,
                             timing: timing
+                        };
+                        debugZoomData(actualZoomData);
+                        
+                        // Log actual scroll results for analysis
+                        logZoomBehavior('ZOOM_EXECUTED', {
+                            expectedScrollX: newScrollX,
+                            expectedScrollY: newScrollY,
+                            actualScrollX: actualScrollX,
+                            actualScrollY: actualScrollY,
+                            deltaX: deltaX,
+                            deltaY: deltaY,
+                            timing: timing,
+                            scale: newScale,
+                            jumpDetected: Math.abs(deltaX) > 50 || Math.abs(deltaY) > 50
                         });
                     }, 5); // Small delay to let scroll complete
                 });
@@ -4597,6 +4605,85 @@ function setMapMode(mode) {
 
 // Make setMapMode globally accessible
 window.setMapMode = setMapMode;
+
+// Zoom behavior logging system
+let zoomBehaviorLog = [];
+let logSession = {
+    startTime: Date.now(),
+    sessionId: 'zoom-' + Date.now(),
+    userAgent: navigator.userAgent,
+    viewport: { width: 0, height: 0 }
+};
+
+function initZoomLogging() {
+    // Capture initial viewport info
+    const container = document.querySelector('.main-display');
+    if (container) {
+        const rect = container.getBoundingClientRect();
+        logSession.viewport = { width: rect.width, height: rect.height };
+    }
+    
+    zoomBehaviorLog.push({
+        timestamp: Date.now() - logSession.startTime,
+        event: 'SESSION_START',
+        data: { ...logSession }
+    });
+}
+
+function logZoomBehavior(event, data) {
+    const logEntry = {
+        timestamp: Date.now() - logSession.startTime,
+        event: event,
+        data: { ...data }
+    };
+    
+    zoomBehaviorLog.push(logEntry);
+    
+    // Keep only last 100 entries to prevent memory issues
+    if (zoomBehaviorLog.length > 100) {
+        zoomBehaviorLog = zoomBehaviorLog.slice(-100);
+    }
+    
+    console.log('[ZOOM LOG]', event, data);
+}
+
+function downloadZoomLog() {
+    const logData = {
+        session: logSession,
+        totalEntries: zoomBehaviorLog.length,
+        logs: zoomBehaviorLog
+    };
+    
+    const jsonString = JSON.stringify(logData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `zoom-behavior-${logSession.sessionId}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    console.log('Zoom behavior log downloaded:', logData.totalEntries, 'entries');
+}
+
+function clearZoomLog() {
+    zoomBehaviorLog = [];
+    logSession = {
+        startTime: Date.now(),
+        sessionId: 'zoom-' + Date.now(),
+        userAgent: navigator.userAgent,
+        viewport: logSession.viewport
+    };
+    initZoomLogging();
+    console.log('Zoom behavior log cleared and reinitialized');
+}
+
+// Make logging functions globally accessible
+window.downloadZoomLog = downloadZoomLog;
+window.clearZoomLog = clearZoomLog;
 
 function setupPanHandlers() {
     const container = document.querySelector('.main-display');
