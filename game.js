@@ -3987,9 +3987,35 @@ function initializeEventHandlers() {
 
     // iOS Safari: prevent browser pinch-zoom gestures so our map zoom handles it
     try {
-        document.addEventListener('gesturestart', (e) => { e.preventDefault(); }, { passive: false });
-        document.addEventListener('gesturechange', (e) => { e.preventDefault(); }, { passive: false });
-        document.addEventListener('gestureend', (e) => { e.preventDefault(); }, { passive: false });
+        // Block all Safari gesture events
+        document.addEventListener('gesturestart', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            debugLog('Gesture Block', 'gesturestart blocked');
+        }, { passive: false });
+        document.addEventListener('gesturechange', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            debugLog('Gesture Block', 'gesturechange blocked');
+        }, { passive: false });
+        document.addEventListener('gestureend', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            debugLog('Gesture Block', 'gestureend blocked');
+        }, { passive: false });
+        
+        // Block double-tap to zoom
+        let lastTap = 0;
+        document.addEventListener('touchend', (e) => {
+            const currentTime = Date.now();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                e.preventDefault();
+                debugLog('Double-tap Block', 'prevented Safari zoom');
+            }
+            lastTap = currentTime;
+        }, { passive: false });
+        
     } catch (e) { /* ignore */ }
 
     // Bind zoom buttons and bottom nav buttons for consistent behavior

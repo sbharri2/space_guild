@@ -18,6 +18,10 @@ html, body {
     font-size: 14px;
     user-select: none;
     -webkit-font-smoothing: antialiased;
+    /* Stronger Safari zoom prevention */
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
 }
 
 /* App Container */
@@ -57,6 +61,8 @@ html, body {
     position: relative;
     -webkit-overflow-scrolling: touch;
     touch-action: none; /* Prevent default touch handling for custom zoom */
+    -webkit-user-select: none; /* Prevent text selection that can trigger zoom */
+    user-select: none;
 }
 
 .ascii-text {
