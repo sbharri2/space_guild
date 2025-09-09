@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>Space Guilds</title>
-    <link rel="stylesheet" href="style.css?v=20250907w">
+    <link rel="stylesheet" href="style.css?v=20250907z">
     <script>
       (function(){
         try {
@@ -58,6 +58,16 @@
         <!-- Mode Toggle Controls -->
         <button class="floating-center-btn mode-btn active" id="move-mode-btn" aria-label="Move Mode" title="Move/Pan Map" style="bottom: 300px;" onclick="setMapMode('move')">🗺️</button>
         <button class="floating-center-btn mode-btn" id="select-mode-btn" aria-label="Select Mode" title="Select Hexes" style="bottom: 240px;" onclick="setMapMode('select')">📍</button>
+        
+        <!-- Visual Debug Overlay -->
+        <div id="debug-overlay" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #00FF41; padding: 10px; font-size: 12px; border-radius: 5px; z-index: 9999; max-width: 300px; font-family: monospace;">
+            <div>Mode: <span id="debug-mode">move</span></div>
+            <div>Touches: <span id="debug-touches">0</span></div>
+            <div>Pan: <span id="debug-pan">inactive</span></div>
+            <div>Pinch: <span id="debug-pinch">inactive</span></div>
+            <div>Zoom: <span id="debug-zoom">1.0</span></div>
+            <div>Last Event: <span id="debug-event">none</span></div>
+        </div>
         
         <!-- Developers Menu Popup -->
         <div id="dev-menu" class="dev-menu hidden">
@@ -811,6 +821,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250907y"></script>
+    <script src="game.js?v=20250907z"></script>
 </body>
 </html>

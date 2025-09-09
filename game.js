@@ -4154,12 +4154,15 @@ function setupPinchZoomHandlers() {
     // iOS Safari-optimized touch start - handles pinch zoom only
     container.addEventListener('touchstart', (e) => {
         log('touchstart, touches:', e.touches.length, 'mode:', gameState.ui.mapMode);
+        window.lastTouchCount = e.touches.length;
+        debugLog('Pinch TouchStart', `${e.touches.length} touches`);
         
         if (e.touches.length === 2) {
             // Two fingers = pinch zoom (works in both modes)
             // Stop any ongoing pan first
             if (gameState.ui.isPanning) {
                 // Let pan handler stop it
+                debugLog('Pinch Blocked', 'pan active');
                 return;
             }
             
@@ -4209,6 +4212,7 @@ function setupPinchZoomHandlers() {
                 
                 gameState.ui.isPinching = true;
                 log('Pinch started, startDist:', startDist, 'startScale:', pinch.startScale);
+                debugLog('Pinch Started', `dist: ${startDist.toFixed(0)}, scale: ${pinch.startScale.toFixed(2)}`);
             } catch (err) {
                 log('Error in touchstart:', err);
             }
@@ -4262,6 +4266,7 @@ function setupPinchZoomHandlers() {
                 });
                 
                 log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
+                debugLog('Pinch Move', `scale: ${newScale.toFixed(2)}, ratio: ${distanceRatio.toFixed(2)}`);
             } catch (err) {
                 log('Error in touchmove:', err);
                 endPinch('touchmove error');
@@ -4296,6 +4301,31 @@ function setupPinchZoomHandlers() {
     log('Pinch zoom handlers setup complete');
 }
 
+// Visual debugging functions
+function updateDebugOverlay() {
+    const debugMode = document.getElementById('debug-mode');
+    const debugPan = document.getElementById('debug-pan');
+    const debugPinch = document.getElementById('debug-pinch');
+    const debugZoom = document.getElementById('debug-zoom');
+    
+    if (debugMode) debugMode.textContent = gameState.ui.mapMode;
+    if (debugPan) debugPan.textContent = gameState.ui.isPanning ? 'ACTIVE' : 'inactive';
+    if (debugPinch) debugPinch.textContent = gameState.ui.isPinching ? 'ACTIVE' : 'inactive';
+    if (debugZoom) debugZoom.textContent = (gameState.ui.zoomScale || 1).toFixed(2);
+}
+
+function debugLog(event, details = '') {
+    const debugEvent = document.getElementById('debug-event');
+    const debugTouches = document.getElementById('debug-touches');
+    
+    if (debugEvent) debugEvent.textContent = event + (details ? ' - ' + details : '');
+    if (debugTouches && window.lastTouchCount !== undefined) {
+        debugTouches.textContent = window.lastTouchCount;
+    }
+    
+    updateDebugOverlay();
+}
+
 // Map mode switching
 function setMapMode(mode) {
     if (mode !== 'move' && mode !== 'select') return;
@@ -4317,6 +4347,7 @@ function setMapMode(mode) {
     }
     
     // Log mode change
+    debugLog('Mode Switch', mode);
     console.log('[Map Mode] Switched to:', mode);
 }
 
@@ -4418,6 +4449,7 @@ function setupPanHandlers() {
         }
         
         console.log('[Pan] Ended with velocity', velocityX, velocityY);
+        debugLog('Pan Function End', `velocity: ${velocityX.toFixed(2)}, ${velocityY.toFixed(2)}`);
     }
     
     function applyMomentum() {
@@ -4448,6 +4480,9 @@ function setupPanHandlers() {
     
     // Touch handlers for mobile (including iOS Safari)
     container.addEventListener('touchstart', (e) => {
+        window.lastTouchCount = e.touches.length;
+        debugLog('Pan TouchStart', `${e.touches.length} touches, mode: ${gameState.ui.mapMode}`);
+        
         // In move mode, handle panning
         if (gameState.ui.mapMode === 'move') {
             // Only handle single touch for panning (pinch uses 2 touches)
@@ -4456,29 +4491,37 @@ function setupPanHandlers() {
                 if (startPan(touch.clientX, touch.clientY)) {
                     // Prevent default to avoid any text selection or other browser behavior
                     e.preventDefault();
+                    debugLog('Pan Started', `at ${touch.clientX},${touch.clientY}`);
                 }
             } else if (e.touches.length > 1 && isPanning) {
                 // Stop panning if user starts pinching
                 endPan();
+                debugLog('Pan Stopped', 'multi-touch detected');
             }
         }
         // In select mode, let hex selection work normally
     }, { passive: false });
     
     container.addEventListener('touchmove', (e) => {
+        window.lastTouchCount = e.touches.length;
         if (isPanning && e.touches.length === 1 && !gameState.ui.isPinching) {
             const touch = e.touches[0];
             updatePan(touch.clientX, touch.clientY);
+            debugLog('Pan Move', `to ${touch.clientX},${touch.clientY}`);
         } else if (e.touches.length > 1 && isPanning) {
             // Stop panning if user starts pinching
             endPan();
+            debugLog('Pan Interrupted', 'multi-touch');
         }
     }, { passive: false });
     
     container.addEventListener('touchend', (e) => {
+        window.lastTouchCount = e.touches.length;
+        debugLog('Pan TouchEnd', `${e.touches.length} touches remaining`);
         // End pan if no touches remain
         if (isPanning && e.touches.length === 0) {
             endPan();
+            debugLog('Pan Ended', 'no touches left');
         }
     }, { passive: false });
     
