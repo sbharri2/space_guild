@@ -98,6 +98,10 @@ html, body {
     right: 20px;
     width: 44px;
     height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid #00FF41;
     border-radius: 50%;
