@@ -4320,9 +4320,33 @@ function setupPinchZoomHandlers() {
                 gameState.ui.zoomScale = newScale;
                 applyMapZoomTransform();
                 
-                // DON'T adjust scroll during zoom - keep position stable
-                // Only zoom the scale, let pan handle position changes
-                debugLog('Zoom Only', `scale: ${newScale.toFixed(2)} - no position change`);
+                // Zoom from viewport center to keep it stable
+                const rect = container.getBoundingClientRect();
+                const viewportCenterX = rect.width / 2;
+                const viewportCenterY = rect.height / 2;
+                
+                // Calculate current scroll position
+                const currentScrollX = container.scrollLeft || 0;
+                const currentScrollY = container.scrollTop || 0;
+                
+                // Find what content point is currently at viewport center
+                const contentCenterX = (currentScrollX + viewportCenterX) / prevScale;
+                const contentCenterY = (currentScrollY + viewportCenterY) / prevScale;
+                
+                // Calculate new scroll to keep that same content point centered
+                const newScrollX = contentCenterX * newScale - viewportCenterX;
+                const newScrollY = contentCenterY * newScale - viewportCenterY;
+                
+                // Apply the scroll adjustment smoothly
+                requestAnimationFrame(() => {
+                    container.scrollTo({ 
+                        left: newScrollX, 
+                        top: newScrollY,
+                        behavior: 'instant'
+                    });
+                });
+                
+                debugLog('Zoom Center', `scale: ${newScale.toFixed(2)} - centered on viewport`);
                 
                 log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
                 debugLog('Pinch Move', `scale: ${newScale.toFixed(2)}, ratio: ${distanceRatio.toFixed(2)}`);
