@@ -3871,6 +3871,15 @@ function init() {
     
     // Rest of init continues...
     initializeEventHandlers();
+    // Remove legacy chrome for full-bleed UI
+    try {
+        const top = document.querySelector('.top-bar');
+        if (top) top.remove();
+        const status = document.getElementById('status-panel');
+        if (status) status.remove();
+        const tab = document.querySelector('.tab-bar');
+        if (tab) tab.remove();
+    } catch (e) { /* ignore */ }
 }
 
 function setupInitialTestAreas() {
@@ -3983,8 +3992,9 @@ function initializeEventHandlers() {
         document.addEventListener('gestureend', (e) => { e.preventDefault(); }, { passive: false });
     } catch (e) { /* ignore */ }
 
-    // No longer need zoom button handlers since we're using mode buttons
-    // setupZoomButtonHandlers();
+    // Bind zoom buttons and bottom nav buttons for consistent behavior
+    setupZoomButtonHandlers();
+    setupBottomNavButtons();
 }
 
 function setupZoomButtonHandlers() {
@@ -4079,6 +4089,25 @@ function setupZoomButtonHandlers() {
     
     setupButton(zin, zoomIn, 'Zoom In');
     setupButton(zout, zoomOut, 'Zoom Out');
+}
+
+function setupBottomNavButtons() {
+    const btnMap = document.getElementById('nav-map-btn');
+    const btnShip = document.getElementById('nav-ship-btn');
+    const btnGuild = document.getElementById('nav-guild-btn');
+    const btnCrisis = document.getElementById('nav-crisis-btn');
+    const bind = (el, fn) => {
+        if (!el) return;
+        const h = (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
+        el.addEventListener('click', h, { passive: false });
+        el.addEventListener('touchstart', h, { passive: false });
+        el.addEventListener('touchend', h, { passive: false });
+        el.addEventListener('pointerup', h, { passive: false });
+    };
+    bind(btnMap, () => updateScreen('map'));
+    bind(btnShip, () => updateScreen('ship'));
+    bind(btnGuild, () => updateScreen('guild'));
+    bind(btnCrisis, () => updateScreen('crisis'));
 }
 
 function applyMapZoomTransform() {
