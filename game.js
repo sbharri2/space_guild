@@ -2507,7 +2507,7 @@ function createSystemGraphics(x, y, systemData) {
 
 // Space Station — uses raster asset for the station icon
 function createSpaceStationSystem(x, y, name) {
-    const size = 72; // px (doubled)
+    const size = 108; // px (72 * 1.5)
     const half = size / 2;
     const href = 'assets/space_station.PNG?v=20250907a';
     // Group is non-interactive (parent systems group already has pointer-events none)
