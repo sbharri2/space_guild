@@ -4294,12 +4294,16 @@ function setupPinchZoomHandlers() {
     }, { passive: false });
 
     // iOS Safari-optimized touch move - handles pinch zoom only
+    let zoomUpdateInProgress = false;
+    
     container.addEventListener('touchmove', (e) => {
-        if (e.touches.length >= 2 && pinch) {
+        if (e.touches.length >= 2 && pinch && !zoomUpdateInProgress) {
             // Two finger pinch zoom
             try {
                 e.preventDefault();
                 e.stopPropagation();
+                
+                zoomUpdateInProgress = true;
                 
                 const [t1, t2] = e.touches;
                 const curDist = getDistance(t1, t2);
@@ -4307,6 +4311,7 @@ function setupPinchZoomHandlers() {
                 // Validate distance to prevent erratic behavior
                 if (curDist < 10 || !isFinite(curDist)) {
                     log('Invalid distance, skipping frame');
+                    zoomUpdateInProgress = false;
                     return;
                 }
                 
@@ -4316,21 +4321,20 @@ function setupPinchZoomHandlers() {
                 
                 // Only update if there's a meaningful change
                 if (Math.abs(newScale - (gameState.ui.zoomScale || 1)) < 0.01) {
+                    zoomUpdateInProgress = false;
                     return;
                 }
                 
                 const prevScale = gameState.ui.zoomScale || 1;
-                gameState.ui.zoomScale = newScale;
-                applyMapZoomTransform();
                 
-                // Zoom from viewport center to keep it stable
+                // SYNCHRONIZED ZOOM: Read scroll position immediately before calculation
+                const currentScrollX = container.scrollLeft || 0;
+                const currentScrollY = container.scrollTop || 0;
+                
+                // Calculate viewport center
                 const rect = container.getBoundingClientRect();
                 const viewportCenterX = rect.width / 2;
                 const viewportCenterY = rect.height / 2;
-                
-                // Calculate current scroll position
-                const currentScrollX = container.scrollLeft || 0;
-                const currentScrollY = container.scrollTop || 0;
                 
                 // Find what content point is currently at viewport center
                 const contentCenterX = (currentScrollX + viewportCenterX) / prevScale;
@@ -4340,7 +4344,7 @@ function setupPinchZoomHandlers() {
                 const newScrollX = contentCenterX * newScale - viewportCenterX;
                 const newScrollY = contentCenterY * newScale - viewportCenterY;
                 
-                // Log all the detailed zoom data
+                // Log zoom calculation
                 const zoomData = {
                     prevScale: prevScale,
                     newScale: newScale,
@@ -4355,60 +4359,57 @@ function setupPinchZoomHandlers() {
                     viewportCenterX: viewportCenterX,
                     viewportCenterY: viewportCenterY
                 };
-                debugZoomData(zoomData);
                 
-                // Log zoom behavior for analysis
                 logZoomBehavior('ZOOM_CALCULATING', zoomData);
                 
-                // Apply the scroll adjustment and track actual results
-                const scrollStartTime = Date.now();
-                requestAnimationFrame(() => {
-                    container.scrollTo({ 
-                        left: newScrollX, 
-                        top: newScrollY,
-                        behavior: 'instant'
-                    });
-                    
-                    // Check what actually happened after the scroll
-                    setTimeout(() => {
-                        const actualScrollX = container.scrollLeft || 0;
-                        const actualScrollY = container.scrollTop || 0;
-                        const deltaX = actualScrollX - newScrollX;
-                        const deltaY = actualScrollY - newScrollY;
-                        const timing = Date.now() - scrollStartTime;
-                        
-                        // Update debug with actual scroll results
-                        const actualZoomData = {
-                            ...zoomData,
-                            actualScrollX: actualScrollX,
-                            actualScrollY: actualScrollY,
-                            deltaX: deltaX,
-                            deltaY: deltaY,
-                            timing: timing
-                        };
-                        debugZoomData(actualZoomData);
-                        
-                        // Log actual scroll results for analysis
-                        logZoomBehavior('ZOOM_EXECUTED', {
-                            expectedScrollX: newScrollX,
-                            expectedScrollY: newScrollY,
-                            actualScrollX: actualScrollX,
-                            actualScrollY: actualScrollY,
-                            deltaX: deltaX,
-                            deltaY: deltaY,
-                            timing: timing,
-                            scale: newScale,
-                            jumpDetected: Math.abs(deltaX) > 50 || Math.abs(deltaY) > 50
-                        });
-                    }, 5); // Small delay to let scroll complete
+                // Apply scale and scroll SYNCHRONOUSLY
+                gameState.ui.zoomScale = newScale;
+                applyMapZoomTransform();
+                
+                // Apply scroll immediately (no async)
+                container.scrollLeft = newScrollX;
+                container.scrollTop = newScrollY;
+                
+                // Verify the scroll worked
+                const actualScrollX = container.scrollLeft || 0;
+                const actualScrollY = container.scrollTop || 0;
+                const deltaX = actualScrollX - newScrollX;
+                const deltaY = actualScrollY - newScrollY;
+                
+                // Update debug immediately
+                const actualZoomData = {
+                    ...zoomData,
+                    actualScrollX: actualScrollX,
+                    actualScrollY: actualScrollY,
+                    deltaX: deltaX,
+                    deltaY: deltaY,
+                    timing: 0
+                };
+                debugZoomData(actualZoomData);
+                
+                // Log execution results
+                logZoomBehavior('ZOOM_EXECUTED', {
+                    expectedScrollX: newScrollX,
+                    expectedScrollY: newScrollY,
+                    actualScrollX: actualScrollX,
+                    actualScrollY: actualScrollY,
+                    deltaX: deltaX,
+                    deltaY: deltaY,
+                    timing: 0,
+                    scale: newScale,
+                    jumpDetected: Math.abs(deltaX) > 50 || Math.abs(deltaY) > 50
                 });
                 
-                debugLog('Zoom Center', `scale: ${newScale.toFixed(2)} - centered on viewport`);
+                debugLog('Zoom Sync', `scale: ${newScale.toFixed(2)} - delta: ${deltaX.toFixed(0)},${deltaY.toFixed(0)}`);
                 
                 log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
                 debugLog('Pinch Move', `scale: ${newScale.toFixed(2)}, ratio: ${distanceRatio.toFixed(2)}`);
+                
+                zoomUpdateInProgress = false;
+                
             } catch (err) {
                 log('Error in touchmove:', err);
+                zoomUpdateInProgress = false;
                 endPinch('touchmove error');
             }
         } else if (pinch && e.touches.length < 2) {
