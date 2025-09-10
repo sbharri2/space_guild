@@ -3203,7 +3203,7 @@ function startOrbitalAnimation(centerX, centerY, orbitRadius) {
             const x = centerX + Math.cos(radians) * orbitRadius;
             const y = centerY + Math.sin(radians) * orbitRadius;
             const r = angleDeg + 90;
-            shipEl.setAttribute('transform', `translate(${x}, ${y}) rotate(${r})`);
+            setShipTransform(shipEl, x, y, r);
         }
         return;
     }
@@ -3250,12 +3250,18 @@ function startOrbitalAnimation(centerX, centerY, orbitRadius) {
         // Calculate tangent rotation (ship points along orbital path)
         const tangentRotation = gameState.player.orbitalAngle + 90; // Tangent is 90° ahead of radius
         
-        // Update ship position and rotation using SVG transform
-        shipElement.setAttribute('transform', `translate(${x}, ${y}) rotate(${tangentRotation})`);
+        // Update ship position and rotation using optimized CSS transform
+        setShipTransform(shipElement, x, y, tangentRotation);
         
         // Continue orbital animation only if not paused
+        // Use lower priority during intensive animations to maintain performance
         if (!gameState.animation.isPaused) {
-            gameState.animation.orbitAnimation = requestAnimationFrame(updateOrbit);
+            if (frameTimeTracker.animationThrottle) {
+                // Reduce orbital animation frequency during intensive operations
+                gameState.animation.orbitAnimation = throttledRequestAnimationFrame(updateOrbit);
+            } else {
+                gameState.animation.orbitAnimation = requestAnimationFrame(updateOrbit);
+            }
         }
     }
     
@@ -5160,6 +5166,58 @@ window.trackAnimationEnd = trackAnimationEnd;
 window.trackMapRedraw = trackMapRedraw;
 window.trackHeavyOperation = trackHeavyOperation;
 
+// ====== PERFORMANCE OPTIMIZATION HELPERS ======
+
+// Helper function to efficiently set ship transform using CSS instead of expensive setAttribute
+function setShipTransform(element, x, y, rotation = 0, scaleX = 1, scaleY = 1) {
+    // Use CSS transform for much better performance than SVG setAttribute
+    element.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scaleX}, ${scaleY})`;
+    element.style.transformOrigin = 'center center';
+}
+
+// Frame time management for smooth animations
+let frameTimeTracker = {
+    lastFrameTime: 0,
+    frameTimeBuffer: 0,
+    maxFrameTime: 16, // Target 60 FPS (16.67ms per frame)
+    animationThrottle: false
+};
+
+// Throttled animation frame helper to prevent frame blocking
+function throttledRequestAnimationFrame(callback) {
+    return requestAnimationFrame((currentTime) => {
+        const deltaTime = currentTime - frameTimeTracker.lastFrameTime;
+        
+        // If we're running too fast, throttle
+        if (deltaTime < frameTimeTracker.maxFrameTime && frameTimeTracker.animationThrottle) {
+            return throttledRequestAnimationFrame(callback);
+        }
+        
+        frameTimeTracker.lastFrameTime = currentTime;
+        callback(currentTime);
+    });
+}
+
+// Pre-computed curve calculation for better performance
+function precomputeBezierCurve(startPos, endPos, controlPos, steps) {
+    const points = [];
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const oneMinusT = 1 - t;
+        
+        // Quadratic bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+        const x = oneMinusT * oneMinusT * startPos.x + 
+                  2 * oneMinusT * t * controlPos.x + 
+                  t * t * endPos.x;
+        const y = oneMinusT * oneMinusT * startPos.y + 
+                  2 * oneMinusT * t * controlPos.y + 
+                  t * t * endPos.y;
+        
+        points.push({ x, y, t });
+    }
+    return points;
+}
+
 // Debug overlay toggle function
 function toggleDebugOverlay() {
     const debugOverlay = document.getElementById('debug-overlay');
@@ -6591,7 +6649,7 @@ function startOrbitWithTransition(centerX, centerY, orbitRadius, durationMs = 50
         const x = centerX + Math.cos(radians) * orbitRadius;
         const y = centerY + Math.sin(radians) * orbitRadius;
         const r = angleDeg + 90;
-        shipEl.setAttribute('transform', `translate(${x}, ${y}) rotate(${r})`);
+        setShipTransform(shipEl, x, y, r);
         return;
     }
     const startTransform = shipEl.getAttribute('transform') || `translate(${centerX}, ${centerY}) rotate(0)`;
@@ -6616,7 +6674,7 @@ function startOrbitWithTransition(centerX, centerY, orbitRadius, durationMs = 50
         const x = fromX + (targetX - fromX) * ease;
         const y = fromY + (targetY - fromY) * ease;
         const r = fromRot + (targetRot - fromRot) * ease;
-        shipEl.setAttribute('transform', `translate(${x}, ${y}) rotate(${r})`);
+        setShipTransform(shipEl, x, y, r);
         if (t < 1) {
             requestAnimationFrame(step);
         } else {
@@ -7678,159 +7736,159 @@ function animateShipWarp(destinationHexId) {
     // Phase 0a: Begin rotation
     shipElement.style.transition = 'all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)';
     const partialAngle = rotationAngle * 0.6;
-    shipElement.setAttribute('transform', `translate(${currentPos.x}, ${currentPos.y}) rotate(${partialAngle})`);
+    setShipTransform(shipElement, currentPos.x, currentPos.y, partialAngle);
     
     setTimeout(() => {
         // Phase 0b: Complete rotation
         shipElement.style.transition = 'all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)';
-        shipElement.setAttribute('transform', `translate(${currentPos.x}, ${currentPos.y}) rotate(${rotationAngle})`);
+        setShipTransform(shipElement, currentPos.x, currentPos.y, rotationAngle);
         
         setTimeout(() => {
             // Phase 1a: Tiny forward movement
             shipElement.style.transition = 'all 0.1s cubic-bezier(0.25, 0.1, 0.25, 1)';
             const move1X = currentPos.x + (directionX * 4);
             const move1Y = currentPos.y + (directionY * 4);
-            shipElement.setAttribute('transform', `translate(${move1X}, ${move1Y}) rotate(${rotationAngle})`);
+            setShipTransform(shipElement, move1X, move1Y, rotationAngle);
             
             setTimeout(() => {
                 // Phase 1b: Small forward movement
                 shipElement.style.transition = 'all 0.1s cubic-bezier(0.25, 0.1, 0.25, 1)';
                 const move2X = currentPos.x + (directionX * 8);
                 const move2Y = currentPos.y + (directionY * 8);
-                shipElement.setAttribute('transform', `translate(${move2X}, ${move2Y}) rotate(${rotationAngle})`);
+                setShipTransform(shipElement, move2X, move2Y, rotationAngle);
                 
                 setTimeout(() => {
                     // Phase 1c: Medium forward movement
                     shipElement.style.transition = 'all 0.1s cubic-bezier(0.25, 0.1, 0.25, 1)';
                     const move3X = currentPos.x + (directionX * 12);
                     const move3Y = currentPos.y + (directionY * 12);
-                    shipElement.setAttribute('transform', `translate(${move3X}, ${move3Y}) rotate(${rotationAngle})`);
+                    setShipTransform(shipElement, move3X, move3Y, rotationAngle);
                     
                     setTimeout(() => {
                         // Phase 1d: Final pre-warp movement
                         shipElement.style.transition = 'all 0.1s cubic-bezier(0.25, 0.1, 0.25, 1)';
                         const move4X = currentPos.x + (directionX * 15);
                         const move4Y = currentPos.y + (directionY * 15);
-                        shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle})`);
+                        setShipTransform(shipElement, move4X, move4Y, rotationAngle);
                         
                         setTimeout(() => {
                             // Phase 2a: Micro stretch
                             shipElement.style.transition = 'all 0.08s cubic-bezier(0.42, 0, 0.58, 1)';
-                            shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.95, 1.1)`);
+                            setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.95, 1.1);
                             
                             setTimeout(() => {
                                 // Phase 2b: Small stretch
                                 shipElement.style.transition = 'all 0.07s cubic-bezier(0.42, 0, 0.58, 1)';
-                                shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.8, 1.3)`);
+                                setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.8, 1.3);
                                 
                                 setTimeout(() => {
                                     // Phase 2c: Medium stretch
                                     shipElement.style.transition = 'all 0.08s cubic-bezier(0.42, 0, 0.58, 1)';
-                                    shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.7, 1.6)`);
+                                    setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.7, 1.6);
                                     
                                     setTimeout(() => {
                                         // Phase 2d: Large stretch
                                         shipElement.style.transition = 'all 0.07s cubic-bezier(0.42, 0, 0.58, 1)';
-                                        shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.6, 1.8)`);
+                                        setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.6, 1.8);
                                         
                                         setTimeout(() => {
                                             // Phase 2e: Major stretch
                                             shipElement.style.transition = 'all 0.05s cubic-bezier(0.42, 0, 1, 1)';
-                                            shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.5, 2.2)`);
+                                            setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.5, 2.2);
                                             
                                             setTimeout(() => {
                                                 // Phase 2f: Extreme stretch
                                                 shipElement.style.transition = 'all 0.05s cubic-bezier(0.42, 0, 1, 1)';
-                                                shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.4, 2.5)`);
+                                                setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.4, 2.5);
                                                 
                                                 setTimeout(() => {
                                                     // Phase 2g: Near-maximum stretch
                                                     shipElement.style.transition = 'all 0.04s cubic-bezier(0.42, 0, 1, 1)';
-                                                    shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.3, 3.2)`);
+                                                    setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.3, 3.2);
                                                     
                                                     setTimeout(() => {
                                                         // Phase 2h: Maximum stretch
                                                         shipElement.style.transition = 'all 0.04s cubic-bezier(0.42, 0, 1, 1)';
-                                                        shipElement.setAttribute('transform', `translate(${move4X}, ${move4Y}) rotate(${rotationAngle}) scale(0.2, 4)`);
+                                                        setShipTransform(shipElement, move4X, move4Y, rotationAngle, 0.2, 4);
                                                         
                                                         setTimeout(() => {
                                                             // Phase 3a: First micro jump
                                                             shipElement.style.transition = 'all 0.03s ease-out';
                                                             const jump1X = currentPos.x + (deltaX * 0.15);
                                                             const jump1Y = currentPos.y + (deltaY * 0.15);
-                                                            shipElement.setAttribute('transform', `translate(${jump1X}, ${jump1Y}) rotate(${rotationAngle}) scale(0.2, 4)`);
+                                                            setShipTransform(shipElement, jump1X, jump1Y, rotationAngle, 0.2, 4);
                                                             
                                                             setTimeout(() => {
                                                                 // Phase 3b: Second micro jump
                                                                 shipElement.style.transition = 'all 0.03s ease-out';
                                                                 const jump2X = currentPos.x + (deltaX * 0.3);
                                                                 const jump2Y = currentPos.y + (deltaY * 0.3);
-                                                                shipElement.setAttribute('transform', `translate(${jump2X}, ${jump2Y}) rotate(${rotationAngle}) scale(0.2, 4)`);
+                                                                setShipTransform(shipElement, jump2X, jump2Y, rotationAngle, 0.2, 4);
                                                                 
                                                                 setTimeout(() => {
                                                                     // Phase 3c: Major jump
                                                                     shipElement.style.transition = 'all 0.02s ease-out';
                                                                     const jump3X = currentPos.x + (deltaX * 0.6);
                                                                     const jump3Y = currentPos.y + (deltaY * 0.6);
-                                                                    shipElement.setAttribute('transform', `translate(${jump3X}, ${jump3Y}) rotate(${rotationAngle}) scale(0.2, 4)`);
+                                                                    setShipTransform(shipElement, jump3X, jump3Y, rotationAngle, 0.2, 4);
                                                                     
                                                                     setTimeout(() => {
                                                                         // Phase 3d: Final jump
                                                                         shipElement.style.transition = 'all 0.02s ease-out';
                                                                         const preDestX = destPos.x - (directionX * 25);
                                                                         const preDestY = destPos.y - (directionY * 25);
-                                                                        shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.2, 4)`);
+                                                                        setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.2, 4);
                                                                         
                                                                         setTimeout(() => {
                                                                             // Phase 4a: Begin deceleration
                                                                             shipElement.style.transition = 'all 0.05s cubic-bezier(0, 0.42, 0.58, 1)';
-                                                                            shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.3, 3)`);
+                                                                            setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.3, 3);
                                                                             
                                                                             setTimeout(() => {
                                                                                 // Phase 4b: First recovery
                                                                                 shipElement.style.transition = 'all 0.05s cubic-bezier(0, 0.42, 0.58, 1)';
-                                                                                shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.4, 2.2)`);
+                                                                                setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.4, 2.2);
                                                                                 
                                                                                 setTimeout(() => {
                                                                                     // Phase 4c: Second recovery
                                                                                     shipElement.style.transition = 'all 0.05s cubic-bezier(0, 0.42, 0.58, 1)';
-                                                                                    shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.5, 1.9)`);
+                                                                                    setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.5, 1.9);
                                                                                     
                                                                                     setTimeout(() => {
                                                                                         // Phase 4d: Third recovery
                                                                                         shipElement.style.transition = 'all 0.05s cubic-bezier(0, 0.42, 0.58, 1)';
-                                                                                        shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.6, 1.6)`);
+                                                                                        setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.6, 1.6);
                                                                                         
                                                                                         setTimeout(() => {
                                                                                             // Phase 4e: Fourth recovery
                                                                                             shipElement.style.transition = 'all 0.05s cubic-bezier(0, 0.42, 0.58, 1)';
-                                                                                            shipElement.setAttribute('transform', `translate(${preDestX}, ${preDestY}) rotate(${rotationAngle}) scale(0.7, 1.5)`);
+                                                                                            setShipTransform(shipElement, preDestX, preDestY, rotationAngle, 0.7, 1.5);
                                                                                             
                                                                                             setTimeout(() => {
                                                                                                 // Phase 4f: Position adjustment
                                                                                                 shipElement.style.transition = 'all 0.06s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                                                                                                 const near1X = destPos.x - (directionX * 15);
                                                                                                 const near1Y = destPos.y - (directionY * 15);
-                                                                                                shipElement.setAttribute('transform', `translate(${near1X}, ${near1Y}) rotate(${rotationAngle}) scale(0.8, 1.3)`);
+                                                                                                setShipTransform(shipElement, near1X, near1Y, rotationAngle, 0.8, 1.3);
                                                                                                 
                                                                                                 setTimeout(() => {
                                                                                                     // Phase 4g: Near final position
                                                                                                     shipElement.style.transition = 'all 0.06s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                                                                                                     const near2X = destPos.x - (directionX * 8);
                                                                                                     const near2Y = destPos.y - (directionY * 8);
-                                                                                                    shipElement.setAttribute('transform', `translate(${near2X}, ${near2Y}) rotate(${rotationAngle}) scale(0.9, 1.1)`);
+                                                                                                    setShipTransform(shipElement, near2X, near2Y, rotationAngle, 0.9, 1.1);
                                                                                                     
                                                                                                     setTimeout(() => {
                                                                                                         // Phase 4h: Almost final
                                                                                                         shipElement.style.transition = 'all 0.07s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                                                                                                         const near3X = destPos.x - (directionX * 3);
                                                                                                         const near3Y = destPos.y - (directionY * 3);
-                                                                                                        shipElement.setAttribute('transform', `translate(${near3X}, ${near3Y}) rotate(${rotationAngle}) scale(0.95, 1.05)`);
+                                                                                                        setShipTransform(shipElement, near3X, near3Y, rotationAngle, 0.95, 1.05);
                                                                                                         
                                                                                                         setTimeout(() => {
                                                                                                             // Phase 4i: Final approach
                                                                                                             shipElement.style.transition = 'all 0.07s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                                                                                                            shipElement.setAttribute('transform', `translate(${destPos.x}, ${destPos.y}) rotate(${rotationAngle}) scale(1, 1)`);
+                                                                                                            setShipTransform(shipElement, destPos.x, destPos.y, rotationAngle, 1, 1);
                                                                                                             
                                                                                                             setTimeout(() => {
             // Animation complete - update game state (use pending light drive AP cost if present)
@@ -7995,10 +8053,20 @@ function animateWarpDrive(destinationHexId) {
     // Store the ending rotation for after warp completes
     gameState.player.shipRotation = endTangentAngle;
     
-    // Create path for animation
+    // Pre-compute curve points for much better performance (avoids calculations every frame)
     const totalSteps = 100; // Smooth curve with 100 steps
-    const stepDuration = 100; // 10 seconds total (100ms per step)
+    const stepDuration = 100; // 10 seconds total (100ms per step)  
     let currentStep = 0;
+    
+    // Pre-calculate all curve points to avoid expensive real-time bezier calculations
+    const curvePoints = precomputeBezierCurve(
+        currentPos, 
+        destPos, 
+        { x: controlX, y: controlY }, 
+        totalSteps
+    );
+    
+    console.log('Pre-computed curve points for warp animation:', curvePoints.length);
     
     function animateAlongCurve() {
         if (currentStep >= totalSteps) {
@@ -8020,35 +8088,37 @@ function animateWarpDrive(destinationHexId) {
                 trackAnimationEnd('warp_drive');
             }
             
+            // Disable animation throttling when warp completes
+            frameTimeTracker.animationThrottle = false;
+            
             completeShipNavigation(destCol, destRow, 5); // 5 AP for warp drive
             // Clear any forced wormhole control after travel completes
             if (gameState.ui) gameState.ui.forcedWarpControl = null;
             return;
         }
         
-        const t = currentStep / totalSteps;
-        
-        // Quadratic Bezier curve calculation - respect lane direction
+        // Use pre-computed curve points (MUCH faster than real-time bezier calculations)
         let x, y, nextX, nextY;
+        
         if (laneDirection === 'reverse') {
-            // Animate along the reversed curve (from dest to current)
-            const reverseT = 1 - t; // Reverse the t value
-            x = Math.pow(1-reverseT, 2) * destPos.x + 2*(1-reverseT)*reverseT * controlX + Math.pow(reverseT, 2) * currentPos.x;
-            y = Math.pow(1-reverseT, 2) * destPos.y + 2*(1-reverseT)*reverseT * controlY + Math.pow(reverseT, 2) * currentPos.y;
+            // Use reversed curve points for reverse direction lanes
+            const reverseIndex = totalSteps - currentStep;
+            const currentPoint = curvePoints[reverseIndex] || curvePoints[curvePoints.length - 1];
+            const nextPoint = curvePoints[Math.max(reverseIndex - 1, 0)];
             
-            // Calculate direction for ship rotation (tangent to curve)
-            const nextReverseT = Math.max(reverseT - 0.01, 0);
-            nextX = Math.pow(1-nextReverseT, 2) * destPos.x + 2*(1-nextReverseT)*nextReverseT * controlX + Math.pow(nextReverseT, 2) * currentPos.x;
-            nextY = Math.pow(1-nextReverseT, 2) * destPos.y + 2*(1-nextReverseT)*nextReverseT * controlY + Math.pow(nextReverseT, 2) * currentPos.y;
+            x = currentPoint.x;
+            y = currentPoint.y;
+            nextX = nextPoint.x;
+            nextY = nextPoint.y;
         } else {
-            // Normal forward animation
-            x = Math.pow(1-t, 2) * currentPos.x + 2*(1-t)*t * controlX + Math.pow(t, 2) * destPos.x;
-            y = Math.pow(1-t, 2) * currentPos.y + 2*(1-t)*t * controlY + Math.pow(t, 2) * destPos.y;
+            // Use normal curve points for forward direction
+            const currentPoint = curvePoints[currentStep] || curvePoints[curvePoints.length - 1];
+            const nextPoint = curvePoints[Math.min(currentStep + 1, curvePoints.length - 1)];
             
-            // Calculate direction for ship rotation (tangent to curve)
-            const nextT = Math.min(t + 0.01, 1);
-            nextX = Math.pow(1-nextT, 2) * currentPos.x + 2*(1-nextT)*nextT * controlX + Math.pow(nextT, 2) * destPos.x;
-            nextY = Math.pow(1-nextT, 2) * currentPos.y + 2*(1-nextT)*nextT * controlY + Math.pow(nextT, 2) * destPos.y;
+            x = currentPoint.x;
+            y = currentPoint.y;
+            nextX = nextPoint.x;
+            nextY = nextPoint.y;
         }
         const tangentAngle = Math.atan2(nextY - y, nextX - x) * (180 / Math.PI) + 90;
         
@@ -8057,8 +8127,8 @@ function animateWarpDrive(destinationHexId) {
         const scaleX = 0.3;
         const scaleY = elongationFactor;
         
-        // Update ship position, rotation, and elongation
-        shipElement.setAttribute('transform', `translate(${x}, ${y}) rotate(${tangentAngle}) scale(${scaleX}, ${scaleY})`);
+        // Update ship position, rotation, and elongation using optimized CSS transform
+        setShipTransform(shipElement, x, y, tangentAngle, scaleX, scaleY);
         
         // Follow the ship with the camera using scroll position
         const mainDisplay = document.querySelector('.main-display');
@@ -8078,8 +8148,12 @@ function animateWarpDrive(destinationHexId) {
         }
         
         currentStep++;
-        setTimeout(animateAlongCurve, stepDuration);
+        // Use throttled requestAnimationFrame instead of setTimeout for smooth frame timing
+        throttledRequestAnimationFrame(animateAlongCurve);
     }
+    
+    // Enable animation throttling for performance during intensive warp animation
+    frameTimeTracker.animationThrottle = true;
     
     // Start the curved animation
     animateAlongCurve();
