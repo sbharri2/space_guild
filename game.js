@@ -4793,6 +4793,373 @@ window.downloadZoomLog = downloadZoomLog;
 window.showZoomLogText = showZoomLogText;
 window.clearZoomLog = clearZoomLog;
 
+// ====== ENERGY PERFORMANCE LOGGING SYSTEM ======
+
+let energyLog = [];
+let energySession = {
+    startTime: Date.now(),
+    sessionId: 'energy-' + Date.now(),
+    userAgent: navigator.userAgent,
+    viewport: { width: 0, height: 0 },
+    isLogging: false
+};
+
+// Performance monitoring state
+let perfMonitor = {
+    frameCount: 0,
+    lastFrameTime: performance.now(),
+    longFrames: { count16ms: 0, count33ms: 0, count50ms: 0 },
+    touchEvents: { count: 0, totalProcessTime: 0 },
+    domOperations: { svgUpdates: 0, elementCreations: 0 },
+    memoryBaseline: 0,
+    animations: { active: new Set(), totalDuration: 0 },
+    backgroundTasks: { timers: 0, intervals: 0 }
+};
+
+function initEnergyLogging() {
+    if (energySession.isLogging) return;
+    
+    // Capture initial viewport and memory info
+    const container = document.querySelector('.main-display');
+    if (container) {
+        const rect = container.getBoundingClientRect();
+        energySession.viewport = { width: rect.width, height: rect.height };
+    }
+    
+    // Record memory baseline if available
+    if (performance.memory) {
+        perfMonitor.memoryBaseline = performance.memory.usedJSHeapSize;
+    }
+    
+    energySession.isLogging = true;
+    energySession.startTime = Date.now();
+    
+    logEnergyEvent('SESSION_START', {
+        session: { ...energySession },
+        memoryBaseline: perfMonitor.memoryBaseline,
+        devicePixelRatio: window.devicePixelRatio || 1
+    });
+    
+    // Start performance monitoring
+    startFrameMonitoring();
+    startTouchMonitoring();
+    startDOMMonitoring();
+    startBackgroundTaskMonitoring();
+    
+    console.log('🔋 Energy logging started:', energySession.sessionId);
+}
+
+function logEnergyEvent(eventType, data) {
+    if (!energySession.isLogging) return;
+    
+    const entry = {
+        timestamp: Date.now() - energySession.startTime,
+        event: eventType,
+        data: { ...data }
+    };
+    
+    // Add current performance snapshot
+    if (performance.memory) {
+        entry.memory = {
+            used: performance.memory.usedJSHeapSize,
+            total: performance.memory.totalJSHeapSize,
+            delta: performance.memory.usedJSHeapSize - perfMonitor.memoryBaseline
+        };
+    }
+    
+    energyLog.push(entry);
+    
+    // Keep log size manageable
+    if (energyLog.length > 200) {
+        energyLog = energyLog.slice(-200);
+    }
+}
+
+function startFrameMonitoring() {
+    let lastTime = performance.now();
+    
+    function trackFrame(currentTime) {
+        if (!energySession.isLogging) return;
+        
+        const frameDelta = currentTime - lastTime;
+        perfMonitor.frameCount++;
+        
+        // Track long frames (performance killers)
+        if (frameDelta > 16) perfMonitor.longFrames.count16ms++;
+        if (frameDelta > 33) perfMonitor.longFrames.count33ms++;
+        if (frameDelta > 50) {
+            perfMonitor.longFrames.count50ms++;
+            logEnergyEvent('LONG_FRAME', {
+                duration: frameDelta,
+                frameCount: perfMonitor.frameCount,
+                severity: frameDelta > 100 ? 'critical' : 'high'
+            });
+        }
+        
+        // Log frame stats every 60 frames
+        if (perfMonitor.frameCount % 60 === 0) {
+            const avgFPS = 1000 / ((currentTime - perfMonitor.lastFrameTime) / 60);
+            logEnergyEvent('FRAME_STATS', {
+                avgFPS: Math.round(avgFPS),
+                longFrames: { ...perfMonitor.longFrames },
+                frameCount: perfMonitor.frameCount
+            });
+            perfMonitor.lastFrameTime = currentTime;
+        }
+        
+        lastTime = currentTime;
+        requestAnimationFrame(trackFrame);
+    }
+    
+    requestAnimationFrame(trackFrame);
+}
+
+function startTouchMonitoring() {
+    let touchStartTime = 0;
+    
+    document.addEventListener('touchstart', () => {
+        touchStartTime = performance.now();
+        perfMonitor.touchEvents.count++;
+    }, { passive: true });
+    
+    document.addEventListener('touchend', () => {
+        if (touchStartTime > 0) {
+            const processTime = performance.now() - touchStartTime;
+            perfMonitor.touchEvents.totalProcessTime += processTime;
+            
+            if (processTime > 16) {
+                logEnergyEvent('SLOW_TOUCH', {
+                    processTime,
+                    totalEvents: perfMonitor.touchEvents.count,
+                    avgProcessTime: perfMonitor.touchEvents.totalProcessTime / perfMonitor.touchEvents.count
+                });
+            }
+        }
+    }, { passive: true });
+}
+
+function startDOMMonitoring() {
+    // Monitor SVG updates (major energy drain)
+    const originalSetAttribute = SVGElement.prototype.setAttribute;
+    SVGElement.prototype.setAttribute = function(name, value) {
+        perfMonitor.domOperations.svgUpdates++;
+        if (perfMonitor.domOperations.svgUpdates % 50 === 0) {
+            logEnergyEvent('SVG_ACTIVITY', {
+                totalUpdates: perfMonitor.domOperations.svgUpdates,
+                recentAttribute: name
+            });
+        }
+        return originalSetAttribute.call(this, name, value);
+    };
+}
+
+function startBackgroundTaskMonitoring() {
+    // Track timer/interval usage
+    const originalSetTimeout = window.setTimeout;
+    const originalSetInterval = window.setInterval;
+    
+    window.setTimeout = function(...args) {
+        perfMonitor.backgroundTasks.timers++;
+        return originalSetTimeout.apply(this, args);
+    };
+    
+    window.setInterval = function(...args) {
+        perfMonitor.backgroundTasks.intervals++;
+        logEnergyEvent('BACKGROUND_TASK', {
+            type: 'interval',
+            totalTimers: perfMonitor.backgroundTasks.timers,
+            totalIntervals: perfMonitor.backgroundTasks.intervals
+        });
+        return originalSetInterval.apply(this, args);
+    };
+}
+
+function stopEnergyLogging() {
+    if (!energySession.isLogging) return;
+    
+    energySession.isLogging = false;
+    
+    logEnergyEvent('SESSION_END', {
+        duration: Date.now() - energySession.startTime,
+        totalFrames: perfMonitor.frameCount,
+        totalTouchEvents: perfMonitor.touchEvents.count,
+        totalSVGUpdates: perfMonitor.domOperations.svgUpdates,
+        longFramesSummary: { ...perfMonitor.longFrames }
+    });
+    
+    console.log('🔋 Energy logging stopped. Total entries:', energyLog.length);
+}
+
+function downloadEnergyLog() {
+    const logData = {
+        session: energySession,
+        entries: energyLog,
+        summary: {
+            totalEntries: energyLog.length,
+            duration: Date.now() - energySession.startTime,
+            performance: perfMonitor
+        }
+    };
+    
+    const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `energy-log-${energySession.sessionId}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    console.log('🔋 Energy log downloaded:', logData.summary.totalEntries, 'entries');
+}
+
+function showEnergyLogText() {
+    const logData = {
+        session: energySession,
+        entries: energyLog,
+        summary: {
+            totalEntries: energyLog.length,
+            duration: Date.now() - energySession.startTime,
+            performance: perfMonitor
+        }
+    };
+    
+    const logText = JSON.stringify(logData, null, 2);
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.9); z-index: 10000; 
+        display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: #1a1a1a; border: 2px solid #00FF41; border-radius: 10px; 
+        padding: 20px; max-width: 90%; max-height: 90%; overflow: hidden; display: flex; flex-direction: column;
+    `;
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-bottom: 10px; font-weight: bold; color: #FFFF00; font-family: monospace;';
+    header.textContent = '🔋 Energy Performance Log - Select All & Copy:';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = `
+        align-self: flex-end; margin-bottom: 10px; background: #333; 
+        color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;
+    `;
+    closeBtn.textContent = '✕ Close';
+    closeBtn.onclick = () => document.body.removeChild(modal);
+    
+    const textarea = document.createElement('textarea');
+    textarea.style.cssText = `
+        width: 100%; height: 400px; background: #0a0a0a; color: #00FF41; 
+        border: 1px solid #333; padding: 10px; font-family: monospace; font-size: 10px;
+        resize: none; overflow-y: auto;
+    `;
+    textarea.value = logText;
+    textarea.readOnly = true;
+    
+    content.appendChild(header);
+    content.appendChild(closeBtn);
+    content.appendChild(textarea);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Try to copy to clipboard
+    try {
+        textarea.select();
+        document.execCommand('copy');
+        header.textContent = '🔋 Energy Performance Log - COPIED TO CLIPBOARD! (You can also select & copy):';
+    } catch (err) {
+        console.log('Clipboard copy failed:', err);
+    }
+}
+
+function clearEnergyLog() {
+    energyLog = [];
+    perfMonitor = {
+        frameCount: 0,
+        lastFrameTime: performance.now(),
+        longFrames: { count16ms: 0, count33ms: 0, count50ms: 0 },
+        touchEvents: { count: 0, totalProcessTime: 0 },
+        domOperations: { svgUpdates: 0, elementCreations: 0 },
+        memoryBaseline: 0,
+        animations: { active: new Set(), totalDuration: 0 },
+        backgroundTasks: { timers: 0, intervals: 0 }
+    };
+    energySession = {
+        startTime: Date.now(),
+        sessionId: 'energy-' + Date.now(),
+        userAgent: navigator.userAgent,
+        viewport: energySession.viewport,
+        isLogging: false
+    };
+    console.log('🔋 Energy log cleared and reset');
+}
+
+// Animation tracking helpers
+function trackAnimationStart(animationName, duration) {
+    if (!energySession.isLogging) return;
+    
+    perfMonitor.animations.active.add(animationName);
+    perfMonitor.animations.totalDuration += duration || 1000;
+    
+    logEnergyEvent('ANIMATION_START', {
+        name: animationName,
+        duration: duration,
+        activeCount: perfMonitor.animations.active.size,
+        totalDuration: perfMonitor.animations.totalDuration
+    });
+}
+
+function trackAnimationEnd(animationName) {
+    if (!energySession.isLogging) return;
+    
+    perfMonitor.animations.active.delete(animationName);
+    
+    logEnergyEvent('ANIMATION_END', {
+        name: animationName,
+        activeCount: perfMonitor.animations.active.size
+    });
+}
+
+// Game-specific energy events
+function trackMapRedraw(reason) {
+    if (!energySession.isLogging) return;
+    
+    logEnergyEvent('MAP_REDRAW', {
+        reason: reason,
+        timestamp: performance.now()
+    });
+}
+
+function trackHeavyOperation(operationName, startTime) {
+    if (!energySession.isLogging) return;
+    
+    const duration = performance.now() - startTime;
+    if (duration > 16) {
+        logEnergyEvent('HEAVY_OPERATION', {
+            operation: operationName,
+            duration: duration,
+            severity: duration > 50 ? 'high' : 'medium'
+        });
+    }
+}
+
+// Make energy logging functions globally accessible
+window.initEnergyLogging = initEnergyLogging;
+window.stopEnergyLogging = stopEnergyLogging;
+window.downloadEnergyLog = downloadEnergyLog;
+window.showEnergyLogText = showEnergyLogText;
+window.clearEnergyLog = clearEnergyLog;
+window.trackAnimationStart = trackAnimationStart;
+window.trackAnimationEnd = trackAnimationEnd;
+window.trackMapRedraw = trackMapRedraw;
+window.trackHeavyOperation = trackHeavyOperation;
+
 // Debug overlay toggle function
 function toggleDebugOverlay() {
     const debugOverlay = document.getElementById('debug-overlay');
@@ -5132,7 +5499,13 @@ function showSystemTooltip(systemId, x, y) {
 
 // Update screen content
 function updateScreen(screenName) {
+    const startTime = performance.now();
     console.log('Updating screen to:', screenName);
+    
+    // Track screen changes for energy monitoring
+    if (window.trackMapRedraw) {
+        trackMapRedraw(`screen_change_to_${screenName}`);
+    }
     
     gameState.currentScreen = screenName;
     const display = document.getElementById('ascii-display');
@@ -5203,6 +5576,11 @@ function updateScreen(screenName) {
                 startOrbitWithTransition(center.x, center.y, 35);
             }
         }, 600);
+    }
+    
+    // Track completion for energy monitoring
+    if (window.trackHeavyOperation) {
+        trackHeavyOperation(`updateScreen_${screenName}`, startTime);
     }
 }
 
@@ -7491,6 +7869,11 @@ function animateShipWarp(destinationHexId) {
 
 // Animate warp drive travel along curved warp lane
 function animateWarpDrive(destinationHexId) {
+    // Track animation start for energy monitoring
+    if (window.trackAnimationStart) {
+        trackAnimationStart('warp_drive', 3000);
+    }
+    
     // Set animation state to block interactions
     gameState.animation.isShipMoving = true;
     
@@ -7631,6 +8014,12 @@ function animateWarpDrive(destinationHexId) {
                 wormholes.style.transition = 'opacity 0.5s ease-in';
                 wormholes.style.opacity = '1';
             }
+            
+            // Track animation end for energy monitoring
+            if (window.trackAnimationEnd) {
+                trackAnimationEnd('warp_drive');
+            }
+            
             completeShipNavigation(destCol, destRow, 5); // 5 AP for warp drive
             // Clear any forced wormhole control after travel completes
             if (gameState.ui) gameState.ui.forcedWarpControl = null;

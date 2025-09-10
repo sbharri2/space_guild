@@ -145,6 +145,11 @@
                     <button class="dev-menu-item" onclick="downloadZoomLog()">📥 Download Zoom Log</button>
                     <button class="dev-menu-item" onclick="showZoomLogText()">📋 Show Zoom Log Text</button>
                     <button class="dev-menu-item" onclick="clearZoomLog()">🗑️ Clear Zoom Log</button>
+                    <button class="dev-menu-item" onclick="initEnergyLogging()">🔋 Start Energy Logging</button>
+                    <button class="dev-menu-item" onclick="stopEnergyLogging()">⏹️ Stop Energy Logging</button>
+                    <button class="dev-menu-item" onclick="downloadEnergyLog()">📥 Download Energy Log</button>
+                    <button class="dev-menu-item" onclick="showEnergyLogText()">📋 Copy Energy Log</button>
+                    <button class="dev-menu-item" onclick="clearEnergyLog()">🗑️ Clear Energy Log</button>
                 </div>
                 <div class="dev-menu-category">
                     <div class="dev-menu-category-title">Performance</div>
@@ -820,6 +825,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250910g"></script>
+    <script src="game.js?v=20250910i"></script>
 </body>
 </html>
