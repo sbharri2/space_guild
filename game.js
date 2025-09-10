@@ -4655,18 +4655,86 @@ function downloadZoomLog() {
     };
     
     const jsonString = JSON.stringify(logData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
     
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `zoom-behavior-${logSession.sessionId}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Try download first, then show text fallback
+    try {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `zoom-behavior-${logSession.sessionId}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        console.log('Zoom behavior log downloaded:', logData.totalEntries, 'entries');
+    } catch (err) {
+        console.log('Download failed, showing text version:', err);
+        showZoomLogText();
+    }
+}
+
+function showZoomLogText() {
+    const logData = {
+        session: logSession,
+        totalEntries: zoomBehaviorLog.length,
+        logs: zoomBehaviorLog
+    };
     
-    console.log('Zoom behavior log downloaded:', logData.totalEntries, 'entries');
+    const jsonString = JSON.stringify(logData, null, 2);
+    
+    // Create a modal to show the text
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.9); z-index: 10000; display: flex; 
+        align-items: center; justify-content: center; padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: #000; color: #00FF41; padding: 20px; border-radius: 10px; 
+        max-width: 90%; max-height: 90%; overflow: auto; font-family: monospace; 
+        font-size: 12px; border: 1px solid #00FF41;
+    `;
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-bottom: 10px; font-weight: bold; color: #FFFF00;';
+    header.textContent = 'Zoom Behavior Log - Select All & Copy:';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = `
+        position: absolute; top: 10px; right: 10px; background: #333; 
+        color: white; border: none; padding: 5px 10px; border-radius: 5px;
+    `;
+    closeBtn.textContent = '✕ Close';
+    closeBtn.onclick = () => document.body.removeChild(modal);
+    
+    const textarea = document.createElement('textarea');
+    textarea.style.cssText = `
+        width: 100%; height: 400px; background: #000; color: #00FF41; 
+        border: 1px solid #333; font-family: monospace; font-size: 11px; 
+        padding: 10px; resize: vertical;
+    `;
+    textarea.value = jsonString;
+    textarea.select();
+    
+    content.appendChild(header);
+    content.appendChild(closeBtn);
+    content.appendChild(textarea);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Try to copy to clipboard
+    try {
+        textarea.select();
+        document.execCommand('copy');
+        header.textContent = 'Zoom Behavior Log - COPIED TO CLIPBOARD! (You can also select & copy):';
+    } catch (err) {
+        console.log('Clipboard copy failed:', err);
+    }
 }
 
 function clearZoomLog() {
@@ -4683,6 +4751,7 @@ function clearZoomLog() {
 
 // Make logging functions globally accessible
 window.downloadZoomLog = downloadZoomLog;
+window.showZoomLogText = showZoomLogText;
 window.clearZoomLog = clearZoomLog;
 
 function setupPanHandlers() {
