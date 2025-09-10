@@ -5216,6 +5216,12 @@ function updateStatusPanel() {
     if (apEl) apEl.textContent = `${gameState.player.actionPoints}/${gameState.player.maxActionPoints}`;
     if (crEl) crEl.textContent = gameState.player.credits.toLocaleString();
     if (shipEl) shipEl.textContent = gameState.player.shipName;
+    
+    // Update AP circle display
+    const apCurrentEl = document.getElementById('ap-current');
+    const apMaxEl = document.getElementById('ap-max');
+    if (apCurrentEl) apCurrentEl.textContent = gameState.player.actionPoints;
+    if (apMaxEl) apMaxEl.textContent = `/${gameState.player.maxActionPoints}`;
 }
 
 // Update action buttons based on current screen

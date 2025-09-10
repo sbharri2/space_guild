@@ -254,6 +254,12 @@
         <button class="floating-center-btn" id="nav-crisis-btn" title="Crisis" style="bottom: 20px; left: 212px; right: auto;">!</button>
         <button class="floating-center-btn" id="nav-log-btn" title="Log" style="bottom: 20px; left: 276px; right: auto;">📝</button>
 
+        <!-- AP Display Circle -->
+        <div id="ap-circle" title="Action Points" style="position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: rgba(0, 0, 0, 0.8); border: 2px solid #00FF41; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #00FF41; font-family: monospace; font-weight: bold; z-index: 1000;">
+            <div id="ap-current" style="font-size: 18px; line-height: 1;">8</div>
+            <div id="ap-max" style="font-size: 10px; opacity: 0.7;">/10</div>
+        </div>
+
         <!-- Loading Overlay -->
         <div id="loading" class="loading-overlay">
             <div class="loading-spinner">
@@ -817,6 +823,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250910a"></script>
+    <script src="game.js?v=20250910b"></script>
 </body>
 </html>
