@@ -8122,6 +8122,9 @@ function animateWarpDrive(destinationHexId) {
         }
         const tangentAngle = Math.atan2(nextY - y, nextX - x) * (180 / Math.PI) + 90;
         
+        // Calculate t for elongation effect (progress along curve)
+        const t = currentStep / totalSteps;
+        
         // Elongation effect during travel (more pronounced in middle)
         const elongationFactor = 1 + Math.sin(t * Math.PI) * 2; // Peak elongation at 50%
         const scaleX = 0.3;
