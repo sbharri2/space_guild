@@ -5219,9 +5219,7 @@ function updateStatusPanel() {
     
     // Update AP circle display
     const apCurrentEl = document.getElementById('ap-current');
-    const apMaxEl = document.getElementById('ap-max');
     if (apCurrentEl) apCurrentEl.textContent = gameState.player.actionPoints;
-    if (apMaxEl) apMaxEl.textContent = `/${gameState.player.maxActionPoints}`;
 }
 
 // Update action buttons based on current screen
