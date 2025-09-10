@@ -5168,11 +5168,11 @@ window.trackHeavyOperation = trackHeavyOperation;
 
 // ====== PERFORMANCE OPTIMIZATION HELPERS ======
 
-// Helper function to efficiently set ship transform using CSS instead of expensive setAttribute
+// Helper function to set ship transform - optimized for fewer repeated string operations
 function setShipTransform(element, x, y, rotation = 0, scaleX = 1, scaleY = 1) {
-    // Use CSS transform for much better performance than SVG setAttribute
-    element.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scaleX}, ${scaleY})`;
-    element.style.transformOrigin = 'center center';
+    // Use setAttribute for SVG elements (more compatible than CSS transforms on mobile)
+    // Still optimized by consolidating transform operations into one call
+    element.setAttribute('transform', `translate(${x}, ${y}) rotate(${rotation}) scale(${scaleX}, ${scaleY})`);
 }
 
 // Frame time management for smooth animations
