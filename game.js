@@ -344,7 +344,9 @@ const gameState = {
         _lastOrbitUpdate: 0,
         // State to restore animations after visibility pause
         wasOrbiting: false,
-        prevAnimationsEnabled: true
+        prevAnimationsEnabled: true,
+        // Smart animation management flags
+        isPausedByZoom: false
     },
     npc: {
         ships: [], // [{id, seed, role, shipType, origin:{x,y,z}, pattern:'wander'|'loop', waypoints?:[hexId], reputation:0, lastInteraction:null}]
@@ -3998,6 +4000,7 @@ function initializeEventHandlers() {
     // Pinch-to-zoom and pan/drag on the map (SVG inside #ascii-display)
     setupPinchZoomHandlers();
     setupPanHandlers();
+    setupViewportAnimationCulling();
 
     // iOS Safari: prevent browser pinch-zoom gestures so our map zoom handles it
     try {
@@ -4162,6 +4165,132 @@ function applyMapZoomTransform() {
     // Safari SVG transforms can require transformBox for correct origin
     try { target.style.transformBox = 'fill-box'; } catch (e) { /* ignore */ }
     target.style.transform = `scale(${scale})`;
+    
+    // Smart animation management based on zoom level
+    manageAnimationsByZoom(scale);
+}
+
+// Automatically pause/resume animations based on zoom level and viewport
+function manageAnimationsByZoom(scale) {
+    // Define zoom threshold - disable animations when zoomed out beyond this point
+    const ZOOM_ANIMATION_THRESHOLD = 0.6; // When scale < 0.6, disable animations
+    
+    if (!gameState.animation) return;
+    
+    const shouldAnimationsBeEnabled = scale >= ZOOM_ANIMATION_THRESHOLD && gameState.animation.animationsEnabled;
+    
+    // Check if we need to change animation state
+    if (shouldAnimationsBeEnabled && gameState.animation.isPausedByZoom) {
+        // Resume animations - zoom level is sufficient
+        gameState.animation.isPausedByZoom = false;
+        if (gameState.animation.animationsEnabled) {
+            resumeAnimations();
+            // Also manage viewport-based culling when resuming
+            manageAnimationsByViewport(scale);
+        }
+    } else if (!shouldAnimationsBeEnabled && !gameState.animation.isPausedByZoom) {
+        // Pause animations - zoomed out too far
+        gameState.animation.isPausedByZoom = true;
+        pauseAnimations();
+    } else if (shouldAnimationsBeEnabled) {
+        // Zoom level allows animations, manage viewport culling
+        manageAnimationsByViewport(scale);
+    }
+}
+
+// Pause animations for systems outside the viewport
+function manageAnimationsByViewport(scale) {
+    if (!gameState.animation.animationsEnabled || gameState.animation.isPausedByZoom) return;
+    
+    const container = document.querySelector('.main-display');
+    const svg = document.querySelector('#ascii-display svg');
+    if (!container || !svg) return;
+    
+    // Get viewport bounds
+    const containerRect = container.getBoundingClientRect();
+    const scrollLeft = container.scrollLeft;
+    const scrollTop = container.scrollTop;
+    
+    // Calculate visible area in content coordinates (accounting for zoom)
+    const visibleLeft = scrollLeft / scale;
+    const visibleTop = scrollTop / scale;
+    const visibleRight = visibleLeft + (containerRect.width / scale);
+    const visibleBottom = visibleTop + (containerRect.height / scale);
+    
+    // Add some padding to prevent flickering at edges
+    const padding = 200 / scale; // 200px padding scaled by zoom
+    const cullingLeft = visibleLeft - padding;
+    const cullingTop = visibleTop - padding;
+    const cullingRight = visibleRight + padding;
+    const cullingBottom = visibleBottom + padding;
+    
+    // Find all system groups and check if they're in viewport
+    const systems = svg.querySelectorAll('g[data-system]');
+    systems.forEach(systemGroup => {
+        const systemName = systemGroup.getAttribute('data-system');
+        if (!systemName) return;
+        
+        // Get system position from transform or direct position
+        const transform = systemGroup.getAttribute('transform');
+        let systemX = 0, systemY = 0;
+        
+        if (transform) {
+            const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            if (translateMatch) {
+                systemX = parseFloat(translateMatch[1]);
+                systemY = parseFloat(translateMatch[2]);
+            }
+        }
+        
+        // Check if system is within culling bounds
+        const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
+                         systemY >= cullingTop && systemY <= cullingBottom;
+        
+        // Pause/resume animations for this specific system
+        const animateElements = systemGroup.querySelectorAll('animate, animateTransform');
+        animateElements.forEach(animEl => {
+            if (isVisible) {
+                // Resume animation if paused
+                if (animEl.hasAttribute('data-paused-by-viewport')) {
+                    animEl.removeAttribute('data-paused-by-viewport');
+                    try {
+                        animEl.beginElement();
+                    } catch (e) {
+                        // If beginElement fails, try unpauseAnimations on parent
+                    }
+                }
+            } else {
+                // Pause animation if not already paused
+                if (!animEl.hasAttribute('data-paused-by-viewport')) {
+                    animEl.setAttribute('data-paused-by-viewport', 'true');
+                    try {
+                        animEl.endElement();
+                    } catch (e) {
+                        // Fallback: set very long duration to effectively pause
+                        animEl.setAttribute('data-original-dur', animEl.getAttribute('dur') || '1s');
+                        animEl.setAttribute('dur', '999999s');
+                    }
+                }
+            }
+        });
+    });
+}
+
+// Setup throttled scroll event for viewport-based animation culling
+function setupViewportAnimationCulling() {
+    const container = document.querySelector('.main-display');
+    if (!container) return;
+    
+    let cullTimeout = null;
+    const CULL_THROTTLE_MS = 100; // Throttle to every 100ms
+    
+    container.addEventListener('scroll', () => {
+        if (cullTimeout) clearTimeout(cullTimeout);
+        cullTimeout = setTimeout(() => {
+            const scale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, gameState.ui.zoomScale || 1));
+            manageAnimationsByViewport(scale);
+        }, CULL_THROTTLE_MS);
+    }, { passive: true });
 }
 
 function setupPinchZoomHandlers() {
