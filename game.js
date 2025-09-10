@@ -3380,12 +3380,17 @@ function centerMapOnPlayer() {
     const hexHeight = hexWidth * (Math.sqrt(3) / 2);
     const playerCenter = cubeToPixel(x, y, z, hexWidth, hexHeight);
     
+    // Account for current zoom scale
+    const currentZoom = gameState.ui.zoomScale || 1;
+    const scaledPlayerX = playerCenter.x * currentZoom;
+    const scaledPlayerY = playerCenter.y * currentZoom;
+    
     // Get viewport dimensions
     const displayRect = mainDisplay.getBoundingClientRect();
     
-    // Calculate scroll position to center player
-    const targetScrollLeft = playerCenter.x - displayRect.width / 2;
-    const targetScrollTop = playerCenter.y - displayRect.height / 2;
+    // Calculate scroll position to center player (accounting for zoom)
+    const targetScrollLeft = scaledPlayerX - displayRect.width / 2;
+    const targetScrollTop = scaledPlayerY - displayRect.height / 2;
     
     // Smooth scroll to player position
     mainDisplay.scrollTo({
@@ -9622,59 +9627,11 @@ function toggleFPS() {
 
 // Center the view on the player's ship
 function centerOnShip() {
-    // Get player position
-    const {x, y, z} = gameState.player.hexLocation;
-    const {col, row} = cubeToOffset(x, y, z);
+    // Use the same zoom-aware logic as centerMapOnPlayer for consistency
+    centerMapOnPlayer();
     
-    // Calculate hex center position in pixels
-    const hexWidth = 52;
-    const hexHeight = 45;
-    const centerX = col * hexWidth * 0.75;
-    const centerY = row * hexHeight;
-    
-    // Get the display element and scroll to center the ship
-    const display = document.getElementById('ascii-display');
-    if (display) {
-        // Get viewport dimensions
-        const viewportWidth = display.clientWidth;
-        const viewportHeight = display.clientHeight;
-        
-        // Calculate scroll position to center the ship
-        const scrollX = centerX - (viewportWidth / 2);
-        const scrollY = centerY - (viewportHeight / 2);
-        
-        // Smooth scroll to ship position
-        display.scrollTo({
-            left: Math.max(0, scrollX),
-            top: Math.max(0, scrollY),
-            behavior: 'smooth'
-        });
-        
-        // Flash the ship for visibility
-        flashPlayerShip();
-    }
-    
-    // Log ship position for debugging
-    console.log(`Ship located at cube(${x}, ${y}, ${z}) = offset(${col}, ${row})`);
-    
-    // Check what's at the ship location
-    const hexId = cubeId(x, y, z);
-    const systemId = `sys_${x}_${y}_${z}`;
-    const generatedSystem = gameState.galaxy.generatedSystems.get(systemId);
-    const knownSystem = Object.values(gameState.galaxy.knownSystems).find(sys => 
-        sys.x === x && sys.y === y && sys.z === z
-    );
-    const resources = gameState.galaxy.resources.hexResources.get(hexId);
-    
-    if (generatedSystem) {
-        console.log(`📍 Ship is at generated system: ${generatedSystem.name}`);
-    } else if (knownSystem) {
-        console.log(`📍 Ship is at known system: ${knownSystem.name}`);
-    } else if (resources) {
-        console.log(`📍 Ship is at resource site: ${resources.specialSite?.type || 'Unknown'}`);
-    } else {
-        console.log(`📍 Ship is in empty space`);
-    }
+    // Flash the ship for visibility
+    flashPlayerShip();
 }
 
 // Flash the player ship for visibility
