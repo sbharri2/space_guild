@@ -17,7 +17,9 @@
       "Bash(git diff:*)",
       "Bash(git merge:*)",
       "Bash(git branch:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(magick identify:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

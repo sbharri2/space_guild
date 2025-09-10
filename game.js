@@ -2507,7 +2507,7 @@ function createSystemGraphics(x, y, systemData) {
 
 // Space Station — uses raster asset for the station icon
 function createSpaceStationSystem(x, y, name) {
-    const size = 108; // px (72 * 1.5)
+    const size = 76; // px (reduced by 30% from 108)
     const half = size / 2;
     const href = 'assets/space_station.PNG?v=20250907a';
     // Group is non-interactive (parent systems group already has pointer-events none)
@@ -9930,7 +9930,7 @@ function parseHexId(id) {
 
 // Wormhole termination icon
 function createWormholeIcon(x, y) {
-    const size = 48; // px (doubled)
+    const size = 96; // px (doubled from original 48)
     const half = size / 2;
     // Add a cache buster so updated art shows immediately
     const href = 'assets/wormhole.png?v=20250907c';
