@@ -60,7 +60,7 @@
         <button class="floating-center-btn mode-btn" id="select-mode-btn" aria-label="Select Mode" title="Select Hexes" style="bottom: 240px;" onclick="setMapMode('select')">📍</button>
         
         <!-- Visual Debug Overlay -->
-        <div id="debug-overlay" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); color: #00FF41; padding: 8px; font-size: 10px; border-radius: 5px; z-index: 9999; max-width: 350px; font-family: monospace; line-height: 1.2;">
+        <div id="debug-overlay" class="hidden" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); color: #00FF41; padding: 8px; font-size: 10px; border-radius: 5px; z-index: 9999; max-width: 350px; font-family: monospace; line-height: 1.2;">
             <div>Mode: <span id="debug-mode">move</span> | Touches: <span id="debug-touches">0</span></div>
             <div>Pan: <span id="debug-pan">inactive</span> | Pinch: <span id="debug-pinch">inactive</span></div>
             <div>Zoom: <span id="debug-zoom">1.0</span> | Prev: <span id="debug-prev-zoom">1.0</span></div>
@@ -144,6 +144,7 @@
                     <button class="dev-menu-item" onclick="toggleEnergyMetrics()">Battery Monitor</button>
                     <button class="dev-menu-item" onclick="showDebugInfo()">Show Debug Info</button>
                     <button class="dev-menu-item" onclick="toggleFPS()">Toggle FPS HUD</button>
+                    <button class="dev-menu-item" onclick="toggleDebugOverlay()">🔍 Toggle Debug Overlay</button>
                     <button class="dev-menu-item" onclick="downloadZoomLog()">📥 Download Zoom Log</button>
                     <button class="dev-menu-item" onclick="showZoomLogText()">📋 Show Zoom Log Text</button>
                     <button class="dev-menu-item" onclick="clearZoomLog()">🗑️ Clear Zoom Log</button>
@@ -816,6 +817,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250909f"></script>
+    <script src="game.js?v=20250909g"></script>
 </body>
 </html>

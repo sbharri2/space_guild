@@ -4529,6 +4529,10 @@ function setupPinchZoomHandlers() {
 
 // Visual debugging functions
 function updateDebugOverlay() {
+    // Only update if debug overlay is visible
+    const debugOverlay = document.getElementById('debug-overlay');
+    if (!debugOverlay || debugOverlay.classList.contains('hidden')) return;
+    
     const debugMode = document.getElementById('debug-mode');
     const debugPan = document.getElementById('debug-pan');
     const debugPinch = document.getElementById('debug-pinch');
@@ -4574,6 +4578,10 @@ function debugLog(event, details = '') {
 }
 
 function debugZoomData(data) {
+    // Only update if debug overlay is visible
+    const debugOverlay = document.getElementById('debug-overlay');
+    if (!debugOverlay || debugOverlay.classList.contains('hidden')) return;
+    
     // Update all the detailed zoom debug fields
     const debugPrevZoom = document.getElementById('debug-prev-zoom');
     const debugContentX = document.getElementById('debug-content-x');
@@ -4779,6 +4787,23 @@ function clearZoomLog() {
 window.downloadZoomLog = downloadZoomLog;
 window.showZoomLogText = showZoomLogText;
 window.clearZoomLog = clearZoomLog;
+
+// Debug overlay toggle function
+function toggleDebugOverlay() {
+    const debugOverlay = document.getElementById('debug-overlay');
+    if (!debugOverlay) return;
+    
+    if (debugOverlay.classList.contains('hidden')) {
+        debugOverlay.classList.remove('hidden');
+        console.log('Debug overlay enabled');
+    } else {
+        debugOverlay.classList.add('hidden');
+        console.log('Debug overlay disabled');
+    }
+}
+
+// Make debug overlay toggle globally accessible
+window.toggleDebugOverlay = toggleDebugOverlay;
 
 function setupPanHandlers() {
     const container = document.querySelector('.main-display');
