@@ -49,13 +49,12 @@
             <div class="status-item">SHIP: <span id="ship-name">Starfinder</span></div>
         </div>
 
-        <!-- Floating Center Button -->
-        <button class="floating-center-btn" id="center-btn" title="Center on Ship" onclick="centerOnShip()">⊕</button>
-        
-
         <!-- Mode Toggle Controls -->
         <button class="floating-center-btn mode-btn active" id="move-mode-btn" aria-label="Move Mode" title="Move/Pan Map" style="bottom: 300px;" onclick="setMapMode('move')">🗺️</button>
         <button class="floating-center-btn mode-btn" id="select-mode-btn" aria-label="Select Mode" title="Select Hexes" style="bottom: 240px;" onclick="setMapMode('select')">📍</button>
+        
+        <!-- Floating Center Button -->
+        <button class="floating-center-btn" id="center-btn" title="Center on Ship" onclick="centerOnShip()" style="bottom: 180px;">⊕</button>
         
         <!-- Visual Debug Overlay -->
         <div id="debug-overlay" class="hidden" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.9); color: #00FF41; padding: 8px; font-size: 10px; border-radius: 5px; z-index: 9999; max-width: 350px; font-family: monospace; line-height: 1.2;">
@@ -822,6 +821,6 @@ function toggleEnergyMetrics() {
   window.energyMetrics.toggle();
 }
     </script>
-    <script src="game.js?v=20250910e"></script>
+    <script src="game.js?v=20250910f"></script>
 </body>
 </html>
