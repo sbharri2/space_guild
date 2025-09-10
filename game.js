@@ -4315,9 +4315,17 @@ function setupPinchZoomHandlers() {
 
     // iOS Safari-optimized touch move - handles pinch zoom only
     let zoomUpdateInProgress = false;
+    let lastZoomTime = 0;
+    const ZOOM_THROTTLE = 16; // ~60fps max
     
     container.addEventListener('touchmove', (e) => {
         if (e.touches.length >= 2 && pinch && !zoomUpdateInProgress) {
+            // Throttle zoom updates to prevent freezing
+            const now = Date.now();
+            if (now - lastZoomTime < ZOOM_THROTTLE) {
+                return;
+            }
+            lastZoomTime = now;
             // Two finger pinch zoom
             try {
                 e.preventDefault();
@@ -4380,9 +4388,7 @@ function setupPinchZoomHandlers() {
                     viewportCenterY: viewportCenterY
                 };
                 
-                logZoomBehavior('ZOOM_CALCULATING', zoomData);
-                
-                // Apply scale and scroll SYNCHRONOUSLY
+                // Apply scale and scroll SYNCHRONOUSLY (skip heavy logging during zoom)
                 gameState.ui.zoomScale = newScale;
                 applyMapZoomTransform();
                 
@@ -4390,40 +4396,29 @@ function setupPinchZoomHandlers() {
                 container.scrollLeft = newScrollX;
                 container.scrollTop = newScrollY;
                 
-                // Verify the scroll worked
+                // Light debug update only (skip heavy operations)
                 const actualScrollX = container.scrollLeft || 0;
                 const actualScrollY = container.scrollTop || 0;
                 const deltaX = actualScrollX - newScrollX;
                 const deltaY = actualScrollY - newScrollY;
                 
-                // Update debug immediately
-                const actualZoomData = {
-                    ...zoomData,
-                    actualScrollX: actualScrollX,
-                    actualScrollY: actualScrollY,
-                    deltaX: deltaX,
-                    deltaY: deltaY,
-                    timing: 0
-                };
-                debugZoomData(actualZoomData);
+                // Only update debug overlay occasionally to reduce DOM thrashing
+                if (now % 3 === 0) { // Every 3rd frame
+                    debugZoomData({
+                        ...zoomData,
+                        actualScrollX: actualScrollX,
+                        actualScrollY: actualScrollY,
+                        deltaX: deltaX,
+                        deltaY: deltaY,
+                        timing: 0
+                    });
+                }
                 
-                // Log execution results
-                logZoomBehavior('ZOOM_EXECUTED', {
-                    expectedScrollX: newScrollX,
-                    expectedScrollY: newScrollY,
-                    actualScrollX: actualScrollX,
-                    actualScrollY: actualScrollY,
-                    deltaX: deltaX,
-                    deltaY: deltaY,
-                    timing: 0,
-                    scale: newScale,
-                    jumpDetected: Math.abs(deltaX) > 50 || Math.abs(deltaY) > 50
-                });
-                
-                debugLog('Zoom Sync', `scale: ${newScale.toFixed(2)} - delta: ${deltaX.toFixed(0)},${deltaY.toFixed(0)}`);
-                
-                log('Scale updated:', newScale.toFixed(2), 'ratio:', distanceRatio.toFixed(2));
-                debugLog('Pinch Move', `scale: ${newScale.toFixed(2)}, ratio: ${distanceRatio.toFixed(2)}`);
+                // Skip heavy debug logging during active zoom to prevent freezing
+                // Only log occasionally for debugging if needed
+                if (now % 5 === 0) {
+                    debugLog('Zoom', `${newScale.toFixed(2)}`);
+                }
                 
                 zoomUpdateInProgress = false;
                 
@@ -4933,12 +4928,23 @@ function setupPanHandlers() {
         // In select mode, let hex selection work normally
     }, { passive: false });
     
+    let lastPanTime = 0;
+    const PAN_THROTTLE = 16; // ~60fps max
+    
     container.addEventListener('touchmove', (e) => {
         window.lastTouchCount = e.touches.length;
         if (isPanning && e.touches.length === 1 && !gameState.ui.isPinching) {
-            const touch = e.touches[0];
-            updatePan(touch.clientX, touch.clientY);
-            debugLog('Pan Move', `to ${touch.clientX},${touch.clientY}`);
+            // Throttle pan updates to prevent freezing
+            const now = Date.now();
+            if (now - lastPanTime >= PAN_THROTTLE) {
+                lastPanTime = now;
+                const touch = e.touches[0];
+                updatePan(touch.clientX, touch.clientY);
+                // Reduce debug logging frequency
+                if (now % 3 === 0) {
+                    debugLog('Pan', `${touch.clientX},${touch.clientY}`);
+                }
+            }
         } else if (e.touches.length > 1 && isPanning) {
             // Stop panning if user starts pinching
             endPan();
