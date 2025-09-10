@@ -4254,11 +4254,21 @@ function setupPinchZoomHandlers() {
                     return;
                 }
                 
-                // Simple pinch data - no midpoint needed since we're not adjusting scroll
+                // Store initial anchor point to prevent jumping
+                const rect = container.getBoundingClientRect();
+                const viewportCenterX = rect.width / 2;
+                const viewportCenterY = rect.height / 2;
+                const currentScrollX = container.scrollLeft || 0;
+                const currentScrollY = container.scrollTop || 0;
+                const startScale = gameState.ui.zoomScale || 1;
+                
                 pinch = {
                     startDist,
-                    startScale: gameState.ui.zoomScale || 1,
-                    startTime: Date.now()
+                    startScale: startScale,
+                    startTime: Date.now(),
+                    // Lock the anchor point at pinch start
+                    anchorX: (currentScrollX + viewportCenterX) / startScale,
+                    anchorY: (currentScrollY + viewportCenterY) / startScale
                 };
                 
                 gameState.ui.isPinching = true;
@@ -4279,11 +4289,21 @@ function setupPinchZoomHandlers() {
                 const startDist = getDistance(t1, t2);
                 
                 if (startDist >= 10) {
+                    // Store initial anchor point for fallback pinch
+                    const rect = container.getBoundingClientRect();
+                    const viewportCenterX = rect.width / 2;
+                    const viewportCenterY = rect.height / 2;
+                    const currentScrollX = container.scrollLeft || 0;
+                    const currentScrollY = container.scrollTop || 0;
+                    const startScale = gameState.ui.zoomScale || 1;
+                    
                     gameState.ui.isPinching = true;
                     pinch = {
                         startDist,
-                        startScale: gameState.ui.zoomScale || 1,
-                        startTime: Date.now()
+                        startScale: startScale,
+                        startTime: Date.now(),
+                        anchorX: (currentScrollX + viewportCenterX) / startScale,
+                        anchorY: (currentScrollY + viewportCenterY) / startScale
                     };
                     debugLog('Pinch Fallback Start', `dist: ${startDist.toFixed(0)}`);
                 }
@@ -4327,22 +4347,22 @@ function setupPinchZoomHandlers() {
                 
                 const prevScale = gameState.ui.zoomScale || 1;
                 
-                // SYNCHRONIZED ZOOM: Read scroll position immediately before calculation
-                const currentScrollX = container.scrollLeft || 0;
-                const currentScrollY = container.scrollTop || 0;
-                
-                // Calculate viewport center
+                // Use the locked anchor point from pinch start to prevent jumping
                 const rect = container.getBoundingClientRect();
                 const viewportCenterX = rect.width / 2;
                 const viewportCenterY = rect.height / 2;
                 
-                // Find what content point is currently at viewport center
-                const contentCenterX = (currentScrollX + viewportCenterX) / prevScale;
-                const contentCenterY = (currentScrollY + viewportCenterY) / prevScale;
+                // Use stored anchor point instead of recalculating
+                const contentCenterX = pinch.anchorX;
+                const contentCenterY = pinch.anchorY;
                 
                 // Calculate new scroll to keep that same content point centered
                 const newScrollX = contentCenterX * newScale - viewportCenterX;
                 const newScrollY = contentCenterY * newScale - viewportCenterY;
+                
+                // Read current scroll for logging purposes
+                const currentScrollX = container.scrollLeft || 0;
+                const currentScrollY = container.scrollTop || 0;
                 
                 // Log zoom calculation
                 const zoomData = {
@@ -4422,11 +4442,21 @@ function setupPinchZoomHandlers() {
                 const startDist = getDistance(t1, t2);
                 
                 if (startDist >= 10) {
+                    // Store initial anchor point for move fallback pinch
+                    const rect = container.getBoundingClientRect();
+                    const viewportCenterX = rect.width / 2;
+                    const viewportCenterY = rect.height / 2;
+                    const currentScrollX = container.scrollLeft || 0;
+                    const currentScrollY = container.scrollTop || 0;
+                    const startScale = gameState.ui.zoomScale || 1;
+                    
                     gameState.ui.isPinching = true;
                     pinch = {
                         startDist,
-                        startScale: gameState.ui.zoomScale || 1,
-                        startTime: Date.now()
+                        startScale: startScale,
+                        startTime: Date.now(),
+                        anchorX: (currentScrollX + viewportCenterX) / startScale,
+                        anchorY: (currentScrollY + viewportCenterY) / startScale
                     };
                     debugLog('Pinch Move Start', `dist: ${startDist.toFixed(0)}`);
                 }
