@@ -7495,11 +7495,17 @@ function animateWarpDrive(destinationHexId) {
     const {x: destX, y: destY, z: destZ} = parseCubeId(destinationHexId);
     const {col: destCol, row: destRow} = cubeToOffset(destX, destY, destZ);
     
-    // Hide the warp lane path during travel
+    // Hide the warp lane path and wormhole paths during travel
     const travelRoutes = document.querySelector('#travel-routes');
     if (travelRoutes) {
         travelRoutes.style.opacity = '0';
         travelRoutes.style.transition = 'opacity 0.3s ease-out';
+    }
+    
+    const wormholes = document.querySelector('#wormholes');
+    if (wormholes) {
+        wormholes.style.opacity = '0';
+        wormholes.style.transition = 'opacity 0.3s ease-out';
     }
     
     const hexWidth = 130;
@@ -7609,11 +7615,17 @@ function animateWarpDrive(destinationHexId) {
     
     function animateAlongCurve() {
         if (currentStep >= totalSteps) {
-            // Animation complete - restore warp lanes visibility
+            // Animation complete - restore warp lanes and wormhole visibility
             const travelRoutes = document.querySelector('#travel-routes');
             if (travelRoutes) {
                 travelRoutes.style.transition = 'opacity 0.5s ease-in';
                 travelRoutes.style.opacity = '1';
+            }
+            
+            const wormholes = document.querySelector('#wormholes');
+            if (wormholes) {
+                wormholes.style.transition = 'opacity 0.5s ease-in';
+                wormholes.style.opacity = '1';
             }
             completeShipNavigation(destCol, destRow, 5); // 5 AP for warp drive
             // Clear any forced wormhole control after travel completes
