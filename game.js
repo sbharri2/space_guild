@@ -4170,10 +4170,14 @@ function applyMapZoomTransform() {
     manageAnimationsByZoom(scale);
 }
 
+// Track animation resume timeout
+let animationResumeTimeout = null;
+
 // Automatically pause/resume animations based on zoom level and viewport
 function manageAnimationsByZoom(scale) {
     // Define zoom threshold - disable animations when zoomed out beyond this point
-    const ZOOM_ANIMATION_THRESHOLD = 0.6; // When scale < 0.6, disable animations
+    const ZOOM_ANIMATION_THRESHOLD = 0.8; // When scale < 0.8, disable animations (more aggressive)
+    const RESUME_DELAY_MS = 500; // Wait 500ms before resuming animations
     
     if (!gameState.animation) return;
     
@@ -4181,18 +4185,25 @@ function manageAnimationsByZoom(scale) {
     
     // Check if we need to change animation state
     if (shouldAnimationsBeEnabled && gameState.animation.isPausedByZoom) {
-        // Resume animations - zoom level is sufficient
-        gameState.animation.isPausedByZoom = false;
-        if (gameState.animation.animationsEnabled) {
-            resumeAnimations();
-            // Also manage viewport-based culling when resuming
-            manageAnimationsByViewport(scale);
-        }
+        // Debounce animation resume to prevent rapid on/off
+        if (animationResumeTimeout) clearTimeout(animationResumeTimeout);
+        animationResumeTimeout = setTimeout(() => {
+            gameState.animation.isPausedByZoom = false;
+            if (gameState.animation.animationsEnabled) {
+                resumeAnimations();
+                // Also manage viewport-based culling when resuming
+                manageAnimationsByViewport(scale);
+            }
+        }, RESUME_DELAY_MS);
     } else if (!shouldAnimationsBeEnabled && !gameState.animation.isPausedByZoom) {
-        // Pause animations - zoomed out too far
+        // Pause animations immediately - zoomed out too far
+        if (animationResumeTimeout) {
+            clearTimeout(animationResumeTimeout);
+            animationResumeTimeout = null;
+        }
         gameState.animation.isPausedByZoom = true;
         pauseAnimations();
-    } else if (shouldAnimationsBeEnabled) {
+    } else if (shouldAnimationsBeEnabled && !gameState.animation.isPausedByZoom) {
         // Zoom level allows animations, manage viewport culling
         manageAnimationsByViewport(scale);
     }
@@ -4218,7 +4229,7 @@ function manageAnimationsByViewport(scale) {
     const visibleBottom = visibleTop + (containerRect.height / scale);
     
     // Add some padding to prevent flickering at edges
-    const padding = 200 / scale; // 200px padding scaled by zoom
+    const padding = 100 / scale; // 100px padding scaled by zoom (reduced for more aggressive culling)
     const cullingLeft = visibleLeft - padding;
     const cullingTop = visibleTop - padding;
     const cullingRight = visibleRight + padding;
