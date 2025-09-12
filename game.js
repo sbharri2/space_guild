@@ -4264,23 +4264,34 @@ function manageAnimationsByViewport(scale) {
                 // Resume animation if paused
                 if (animEl.hasAttribute('data-paused-by-viewport')) {
                     animEl.removeAttribute('data-paused-by-viewport');
+                    // Restore original duration if it was changed
+                    const originalDur = animEl.getAttribute('data-original-dur');
+                    if (originalDur) {
+                        animEl.setAttribute('dur', originalDur);
+                        animEl.removeAttribute('data-original-dur');
+                    }
+                    // Force restart the animation by setting begin to current time
                     try {
-                        animEl.beginElement();
+                        const svg = animEl.ownerSVGElement;
+                        if (svg && svg.getCurrentTime) {
+                            const currentTime = svg.getCurrentTime();
+                            animEl.setAttribute('begin', `${currentTime}s`);
+                        }
                     } catch (e) {
-                        // If beginElement fails, try unpauseAnimations on parent
+                        // Fallback: clone and replace to restart animation
+                        const newAnimEl = animEl.cloneNode(true);
+                        newAnimEl.removeAttribute('data-paused-by-viewport');
+                        animEl.parentNode.replaceChild(newAnimEl, animEl);
                     }
                 }
             } else {
                 // Pause animation if not already paused
                 if (!animEl.hasAttribute('data-paused-by-viewport')) {
                     animEl.setAttribute('data-paused-by-viewport', 'true');
-                    try {
-                        animEl.endElement();
-                    } catch (e) {
-                        // Fallback: set very long duration to effectively pause
-                        animEl.setAttribute('data-original-dur', animEl.getAttribute('dur') || '1s');
-                        animEl.setAttribute('dur', '999999s');
-                    }
+                    // Save original duration and set to very long to pause
+                    const currentDur = animEl.getAttribute('dur') || '1s';
+                    animEl.setAttribute('data-original-dur', currentDur);
+                    animEl.setAttribute('dur', '999999s');
                 }
             }
         });
