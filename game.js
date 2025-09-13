@@ -4180,21 +4180,13 @@ function manageAnimationsByZoom(scale) {
 
 // Pause animations for systems outside the viewport using visibility
 function manageAnimationsByViewport(scale) {
-    console.log('[manageAnimationsByViewport] Called with scale:', scale, 'isPausedByZoom:', gameState.animation.isPausedByZoom);
-    
     // Don't check animationsEnabled here - we always want to manage visibility
     // to ensure systems are shown properly even if animations are disabled
-    if (gameState.animation.isPausedByZoom) {
-        console.log('[manageAnimationsByViewport] Exiting early - isPausedByZoom is true');
-        return;
-    }
+    if (gameState.animation.isPausedByZoom) return;
     
     const container = document.querySelector('.main-display');
     const svg = document.querySelector('#ascii-display svg');
-    if (!container || !svg) {
-        console.log('[manageAnimationsByViewport] Exiting - container or svg not found');
-        return;
-    }
+    if (!container || !svg) return;
     
     // Get viewport bounds
     const containerRect = container.getBoundingClientRect();
@@ -4214,17 +4206,13 @@ function manageAnimationsByViewport(scale) {
     const cullingRight = visibleRight + padding;
     const cullingBottom = visibleBottom + padding;
     
-    console.log('[Viewport Debug]', {
-        scrollLeft, scrollTop,
-        visibleBounds: {visibleLeft, visibleTop, visibleRight, visibleBottom},
-        cullingBounds: {cullingLeft, cullingTop, cullingRight, cullingBottom},
-        scale,
-        containerSize: {width: containerRect.width, height: containerRect.height}
-    });
-    
     // Find all system groups and check if they're in viewport
     const systems = svg.querySelectorAll('g[data-system]');
-    console.log(`[Viewport Debug] Processing ${systems.length} systems`);
+    
+    // Track visibility stats
+    let visibleCount = 0;
+    let hiddenCount = 0;
+    const visibleSystems = [];
     systems.forEach(systemGroup => {
         const systemName = systemGroup.getAttribute('data-system');
         if (!systemName) return;
@@ -4256,11 +4244,6 @@ function manageAnimationsByViewport(scale) {
         const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
                          systemY >= cullingTop && systemY <= cullingBottom;
         
-        // Debug specific systems
-        if (systemName === 'Sol') {
-            console.log(`[Sol Debug] Position: (${systemX}, ${systemY}), Visible: ${isVisible}`);
-        }
-        
         // Use visibility to control animation rendering
         // This stops painting costs while keeping animations running in background
         if (isVisible) {
@@ -4268,13 +4251,22 @@ function manageAnimationsByViewport(scale) {
             if (systemGroup.style.visibility === 'hidden') {
                 systemGroup.style.visibility = 'visible';
             }
+            visibleCount++;
+            visibleSystems.push(systemName);
         } else {
             // Hide to stop painting (animations continue but don't render)
             if (systemGroup.style.visibility !== 'hidden') {
                 systemGroup.style.visibility = 'hidden';
             }
+            hiddenCount++;
         }
     });
+    
+    // Log visibility stats periodically (only when there's a change)
+    if (window.lastVisibleCount !== visibleCount) {
+        console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems | Animating: ${visibleSystems.join(', ')}`);
+        window.lastVisibleCount = visibleCount;
+    }
 }
 
 // Setup throttled scroll event for viewport-based animation culling
@@ -4290,7 +4282,6 @@ function setupViewportAnimationCulling() {
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             const scale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, gameState.ui.zoomScale || 1));
-            console.log('[Initial Culling] Running viewport check after layout complete');
             manageAnimationsByViewport(scale);
         });
     });
