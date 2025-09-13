@@ -3930,15 +3930,6 @@ function setupInitialTestAreas() {
     setHexState(startingHexId, 'visited');
 }
 
-function isIOSSafari() {
-    try {
-        const ua = navigator.userAgent || '';
-        const isIOS = /(iPad|iPhone|iPod)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isSafariEngine = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
-        return isIOS && isSafariEngine;
-    } catch { return false; }
-}
-
 function initializeEventHandlers() {
     // Add Page Visibility API to pause animations when not visible
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -4006,29 +3997,9 @@ function initializeEventHandlers() {
         }
     });
 
-    // iOS Safari only: avoid global gesture blocking; allow native gestures
-    try {
-        if (!isIOSSafari()) {
-            // Optional double-tap block (non-iOS)
-            let lastTap = 0;
-            document.addEventListener('touchend', (e) => {
-                const currentTime = Date.now();
-                const tapLength = currentTime - lastTap;
-                if (tapLength < 400 && tapLength > 0) {
-                    if (e.cancelable) e.preventDefault();
-                }
-                lastTap = currentTime;
-            }, { passive: false });
-        }
-    } catch (e) { /* ignore */ }
-
-    // On iOS Safari, skip custom pinch/pan; allow on all other browsers (incl. iOS Chrome)
-    try {
-        if (!isIOSSafari()) {
-            setupPinchZoomHandlers();
-            setupPanHandlers();
-        }
-    } catch (e) { /* ignore */ }
+    // Set up custom pinch and pan handlers on all browsers
+    try { setupPinchZoomHandlers(); } catch (e) { /* ignore */ }
+    try { setupPanHandlers(); } catch (e) { /* ignore */ }
     setupViewportAnimationCulling();
 
     // Bind zoom buttons and bottom nav buttons for consistent behavior
