@@ -4172,17 +4172,22 @@ function manageAnimationsByZoom(scale) {
         }
         gameState.animation.isPausedByZoom = true;
         pauseAnimations();
+        // Still manage viewport visibility even when zoomed out
+        manageAnimationsByViewport(scale);
     } else if (zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
         // Zoom level allows animations, manage viewport culling
+        manageAnimationsByViewport(scale);
+    } else {
+        // Always ensure viewport visibility is managed
         manageAnimationsByViewport(scale);
     }
 }
 
 // Pause animations for systems outside the viewport using visibility
 function manageAnimationsByViewport(scale) {
-    // Don't check animationsEnabled here - we always want to manage visibility
-    // to ensure systems are shown properly even if animations are disabled
-    if (gameState.animation.isPausedByZoom) return;
+    // Always manage visibility regardless of animation state
+    // This ensures systems are shown/hidden properly based on viewport
+    // Note: isPausedByZoom should NOT prevent visibility management
     
     const container = document.querySelector('.main-display');
     const svg = document.querySelector('#ascii-display svg');
@@ -4244,10 +4249,6 @@ function manageAnimationsByViewport(scale) {
         const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
                          systemY >= cullingTop && systemY <= cullingBottom;
         
-        // Debug log for first few systems
-        if (systems.length < 10 || systemName === 'Sol' || systemName === 'Alpha Centauri') {
-            console.log(`[System Check] ${systemName}: pos(${systemX},${systemY}) visible:${isVisible}`);
-        }
         
         // Use visibility to control animation rendering
         // This stops painting costs while keeping animations running in background
@@ -4267,18 +4268,11 @@ function manageAnimationsByViewport(scale) {
         }
     });
     
-    // Always log visibility stats for debugging
-    console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems`);
-    if (visibleCount > 0) {
-        console.log(`[Visible Systems] ${visibleSystems.join(', ')}`);
+    // Log visibility stats periodically (only when there's a change)
+    if (window.lastVisibleCount !== visibleCount) {
+        console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems | Animating: ${visibleSystems.slice(0, 5).join(', ')}${visibleSystems.length > 5 ? '...' : ''}`);
+        window.lastVisibleCount = visibleCount;
     }
-    
-    // Log viewport bounds for debugging
-    console.log('[Viewport Bounds]', {
-        viewport: {left: visibleLeft, top: visibleTop, right: visibleRight, bottom: visibleBottom},
-        scroll: {x: scrollLeft, y: scrollTop},
-        scale: scale
-    });
 }
 
 // Setup throttled scroll event for viewport-based animation culling
