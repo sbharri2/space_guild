@@ -4178,13 +4178,21 @@ function manageAnimationsByZoom(scale) {
 
 // Pause animations for systems outside the viewport using visibility
 function manageAnimationsByViewport(scale) {
+    console.log('[manageAnimationsByViewport] Called with scale:', scale, 'isPausedByZoom:', gameState.animation.isPausedByZoom);
+    
     // Don't check animationsEnabled here - we always want to manage visibility
     // to ensure systems are shown properly even if animations are disabled
-    if (gameState.animation.isPausedByZoom) return;
+    if (gameState.animation.isPausedByZoom) {
+        console.log('[manageAnimationsByViewport] Exiting early - isPausedByZoom is true');
+        return;
+    }
     
     const container = document.querySelector('.main-display');
     const svg = document.querySelector('#ascii-display svg');
-    if (!container || !svg) return;
+    if (!container || !svg) {
+        console.log('[manageAnimationsByViewport] Exiting - container or svg not found');
+        return;
+    }
     
     // Get viewport bounds
     const containerRect = container.getBoundingClientRect();
