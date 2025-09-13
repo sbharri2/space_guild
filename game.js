@@ -3818,6 +3818,22 @@ function createSystemTooltip(systemId) {
 function init() {
     console.log('Initializing Space Guilds...');
     
+    // DISABLE ALL ANIMATIONS - Systems will be static for stability
+    setTimeout(() => {
+        const svg = document.querySelector('#ascii-display svg');
+        if (svg && svg.pauseAnimations) {
+            svg.pauseAnimations();
+            console.log('[Animations] All system animations disabled for stability');
+        }
+        
+        // Ensure all systems are visible
+        const systems = document.querySelectorAll('g[data-system]');
+        systems.forEach(system => {
+            system.style.visibility = 'visible';
+        });
+        console.log(`[Visibility] Ensured ${systems.length} systems are visible`);
+    }, 500);
+    
     // Initialize zoom logging system
     initZoomLogging();
     
@@ -4000,7 +4016,8 @@ function initializeEventHandlers() {
     // Set up custom pinch and pan handlers on all browsers
     try { setupPinchZoomHandlers(); } catch (e) { /* ignore */ }
     try { setupPanHandlers(); } catch (e) { /* ignore */ }
-    setupViewportAnimationCulling();
+    // DISABLED: Viewport animation culling - all systems always visible
+    // setupViewportAnimationCulling();
 
     // Bind zoom buttons and bottom nav buttons for consistent behavior
     setupZoomButtonHandlers();
@@ -4133,8 +4150,8 @@ function applyMapZoomTransform() {
     try { target.style.transformBox = 'fill-box'; } catch (e) { /* ignore */ }
     target.style.transform = `scale(${scale})`;
     
-    // Smart animation management based on zoom level
-    manageAnimationsByZoom(scale);
+    // DISABLED: Animation management - all systems always visible, no animations
+    // manageAnimationsByZoom(scale);
 }
 
 // Track animation resume timeout
