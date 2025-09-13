@@ -4244,6 +4244,11 @@ function manageAnimationsByViewport(scale) {
         const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
                          systemY >= cullingTop && systemY <= cullingBottom;
         
+        // Debug log for first few systems
+        if (systems.length < 10 || systemName === 'Sol' || systemName === 'Alpha Centauri') {
+            console.log(`[System Check] ${systemName}: pos(${systemX},${systemY}) visible:${isVisible}`);
+        }
+        
         // Use visibility to control animation rendering
         // This stops painting costs while keeping animations running in background
         if (isVisible) {
@@ -4262,11 +4267,18 @@ function manageAnimationsByViewport(scale) {
         }
     });
     
-    // Log visibility stats periodically (only when there's a change)
-    if (window.lastVisibleCount !== visibleCount) {
-        console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems | Animating: ${visibleSystems.join(', ')}`);
-        window.lastVisibleCount = visibleCount;
+    // Always log visibility stats for debugging
+    console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems`);
+    if (visibleCount > 0) {
+        console.log(`[Visible Systems] ${visibleSystems.join(', ')}`);
     }
+    
+    // Log viewport bounds for debugging
+    console.log('[Viewport Bounds]', {
+        viewport: {left: visibleLeft, top: visibleTop, right: visibleRight, bottom: visibleBottom},
+        scroll: {x: scrollLeft, y: scrollTop},
+        scale: scale
+    });
 }
 
 // Setup throttled scroll event for viewport-based animation culling
