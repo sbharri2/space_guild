@@ -3282,97 +3282,29 @@ function stopOrbitalAnimation() {
     gameState.animation.wasOrbiting = false;
 }
 
-// Pause all animations to save battery
+// DISABLED: Animation pause function is now a no-op
 function pauseAnimations() {
-    gameState.animation.isPaused = true;
-    gameState.animation._lastOrbitUpdate = 0;
-    // Pause NPC timer to save power
-    try {
-        if (gameState.npc && gameState.npc._timer) {
-            clearInterval(gameState.npc._timer);
-            gameState.npc._timer = null;
-        }
-    } catch(e) { /* ignore */ }
-    // Remember whether we were animating and the previous enable state
-    gameState.animation.prevAnimationsEnabled = !!gameState.animation.animationsEnabled;
-    if (gameState.animation.orbitAnimation) {
-        gameState.animation.wasOrbiting = true;
-    }
-    if (gameState.animation.orbitAnimation) {
-        cancelAnimationFrame(gameState.animation.orbitAnimation);
-        gameState.animation.orbitAnimation = null;
-    }
-    // Pause SVG SMIL animations (planets, stars, etc.) to save energy
-    try {
-        const svg = document.querySelector('#ascii-display svg');
-        if (svg && typeof svg.pauseAnimations === 'function') {
-            svg.pauseAnimations();
-        }
-    } catch (e) { /* ignore */ }
+    // NO-OP: Animations are globally disabled for stability
+    console.log('[Animations] pauseAnimations() called but disabled');
 }
 
-// Resume animations when visible
+// DISABLED: Animation resume function is now a no-op
 function resumeAnimations() {
-    if (!gameState.animation.isPaused) return;
-    gameState.animation.isPaused = false;
-    gameState.animation._lastOrbitUpdate = 0;
-    // Resume SVG SMIL animations
-    try {
-        const svg = document.querySelector('#ascii-display svg');
-        if (svg && typeof svg.unpauseAnimations === 'function') {
-            svg.unpauseAnimations();
-        }
-    } catch (e) { /* ignore */ }
-    // Restart orbital animation if it was animating before pause
-    if (gameState.animation.wasOrbiting) {
-        // Restore previous enable state if it was on
-        if (gameState.animation.prevAnimationsEnabled) {
-            gameState.animation.animationsEnabled = true;
-        }
-        const {x, y, z} = gameState.player.hexLocation;
-        const knownSystem = Object.values(gameState.galaxy.knownSystems)
-            .find(system => system.x === x && system.y === y && system.z === z);
-        const genSystemId = `sys_${x}_${y}_${z}`;
-        const generatedSystem = gameState.galaxy.generatedSystems.get(genSystemId);
-        const systemData = knownSystem || generatedSystem;
-        if (systemData && (systemData.type || '').toLowerCase() !== 'empty') {
-            const hexWidth = 130;
-            const hexHeight = hexWidth * (Math.sqrt(3) / 2);
-            const center = cubeToPixel(x, y, z, hexWidth, hexHeight);
-            startOrbitalAnimation(center.x, center.y, 35);
-        }
-    }
-    // Resume NPC timer (independent of animation visual state)
-    try {
-        if (gameState.npc && !gameState.npc._timer) {
-            gameState.npc._timer = setInterval(() => {
-                const newPhase = _computeNpcPhase();
-                if (gameState.npc._phase !== newPhase) {
-                    _recomputeNpcPositions();
-                } else {
-                    _recomputeNpcPositions();
-                }
-            }, 15000);
-        }
-    } catch(e) { /* ignore */ }
+    // NO-OP: Animations are globally disabled for stability
+    console.log('[Animations] resumeAnimations() called but disabled');
 }
 
-// Handle Page Visibility API
+// DISABLED: Animation event handlers are now no-ops
 function handleVisibilityChange() {
-    if (document.hidden) {
-        pauseAnimations();
-    } else {
-        resumeAnimations();
-    }
+    // NO-OP: Animation handling disabled
 }
 
-// Handle window focus (fallback for older browsers)
 function handleFocus() {
-    resumeAnimations();
+    // NO-OP: Animation handling disabled
 }
 
 function handleBlur() {
-    pauseAnimations();
+    // NO-OP: Animation handling disabled
 }
 
 // Center the map viewport on the player ship
@@ -3947,12 +3879,10 @@ function setupInitialTestAreas() {
 }
 
 function initializeEventHandlers() {
-    // Add Page Visibility API to pause animations when not visible
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Also pause on focus/blur for broader browser support
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
+    // DISABLED: Animation event handlers - animations are globally disabled
+    // document.addEventListener('visibilitychange', handleVisibilityChange);
+    // window.addEventListener('focus', handleFocus);
+    // window.addEventListener('blur', handleBlur);
     
     // Handle tab switching
     document.querySelectorAll('.tab-btn').forEach(tab => {
@@ -6811,35 +6741,10 @@ function showDiscoveryLog() {
 }
 
 // Global animations enable/disable toggle
+// DISABLED: Animation toggle function is now a no-op
 function setAnimationsEnabled(enabled) {
-    gameState.animation.animationsEnabled = !!enabled;
-    if (!enabled) {
-        pauseAnimations();
-    } else {
-        // Re-enable SVG animations
-        try {
-            const svg = document.querySelector('#ascii-display svg');
-            if (svg && typeof svg.unpauseAnimations === 'function') {
-                svg.unpauseAnimations();
-            }
-        } catch (e) { /* ignore */ }
-        gameState.animation.isPaused = false;
-        // Restart orbital if applicable
-        const {x, y, z} = gameState.player.hexLocation;
-        const knownSystem = Object.values(gameState.galaxy.knownSystems)
-            .find(system => system.x === x && system.y === y && system.z === z);
-        const genSystemId = `sys_${x}_${y}_${z}`;
-        const generatedSystem = gameState.galaxy.generatedSystems.get(genSystemId);
-        const systemData = knownSystem || generatedSystem;
-        if (systemData && (systemData.type || '').toLowerCase() !== 'empty') {
-            const hexWidth = 130;
-            const hexHeight = hexWidth * (Math.sqrt(3) / 2);
-            const center = cubeToPixel(x, y, z, hexWidth, hexHeight);
-            startOrbitalAnimation(center.x, center.y, 35);
-        }
-        // Also recompute NPC encounters after resume
-        try { _recomputeNpcPositions(); } catch (e) { /* ignore */ }
-    }
+    // NO-OP: Animations are globally disabled for stability
+    console.log(`[Animations] setAnimationsEnabled(${enabled}) called but disabled`);
 }
 
 // Smoothly move the ship from center to first orbit position, then start orbit animation
