@@ -60,7 +60,8 @@ html, body {
     padding: 0; /* allow full-bleed map */
     position: relative;
     -webkit-overflow-scrolling: touch;
-    touch-action: none; /* Prevent default touch handling for custom zoom */
+    /* Use custom pinch/pan handlers */
+    touch-action: none;
     -webkit-user-select: none; /* Prevent text selection that can trigger zoom */
     user-select: none;
 }
@@ -85,7 +86,8 @@ html, body {
 #map-zoom {
     display: inline-block;
     transform-origin: 0 0;
-    touch-action: none; /* Allow custom zoom gestures */
+    /* Use custom pinch/pan handlers */
+    touch-action: none;
 }
 
 /* ASCII Map Container */

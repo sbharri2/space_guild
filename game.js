@@ -3997,43 +3997,10 @@ function initializeEventHandlers() {
         }
     });
 
-    // Pinch-to-zoom and pan/drag on the map (SVG inside #ascii-display)
-    setupPinchZoomHandlers();
-    setupPanHandlers();
+    // Set up custom pinch and pan handlers on all browsers
+    try { setupPinchZoomHandlers(); } catch (e) { /* ignore */ }
+    try { setupPanHandlers(); } catch (e) { /* ignore */ }
     setupViewportAnimationCulling();
-
-    // iOS Safari: prevent browser pinch-zoom gestures so our map zoom handles it
-    try {
-        // Block all Safari gesture events
-        document.addEventListener('gesturestart', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gesturestart blocked');
-        }, { passive: false });
-        document.addEventListener('gesturechange', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gesturechange blocked');
-        }, { passive: false });
-        document.addEventListener('gestureend', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gestureend blocked');
-        }, { passive: false });
-        
-        // Block double-tap to zoom
-        let lastTap = 0;
-        document.addEventListener('touchend', (e) => {
-            const currentTime = Date.now();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 500 && tapLength > 0) {
-                e.preventDefault();
-                debugLog('Double-tap Block', 'prevented Safari zoom');
-            }
-            lastTap = currentTime;
-        }, { passive: false });
-        
-    } catch (e) { /* ignore */ }
 
     // Bind zoom buttons and bottom nav buttons for consistent behavior
     setupZoomButtonHandlers();
