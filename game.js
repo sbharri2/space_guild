@@ -4208,11 +4208,13 @@ function manageAnimationsByViewport(scale) {
         scrollLeft, scrollTop,
         visibleBounds: {visibleLeft, visibleTop, visibleRight, visibleBottom},
         cullingBounds: {cullingLeft, cullingTop, cullingRight, cullingBottom},
-        scale
+        scale,
+        containerSize: {width: containerRect.width, height: containerRect.height}
     });
     
     // Find all system groups and check if they're in viewport
     const systems = svg.querySelectorAll('g[data-system]');
+    console.log(`[Viewport Debug] Processing ${systems.length} systems`);
     systems.forEach(systemGroup => {
         const systemName = systemGroup.getAttribute('data-system');
         if (!systemName) return;
