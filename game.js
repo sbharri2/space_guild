@@ -4178,7 +4178,9 @@ function manageAnimationsByZoom(scale) {
 
 // Pause animations for systems outside the viewport using visibility
 function manageAnimationsByViewport(scale) {
-    if (!gameState.animation.animationsEnabled || gameState.animation.isPausedByZoom) return;
+    // Don't check animationsEnabled here - we always want to manage visibility
+    // to ensure systems are shown properly even if animations are disabled
+    if (gameState.animation.isPausedByZoom) return;
     
     const container = document.querySelector('.main-display');
     const svg = document.querySelector('#ascii-display svg');
