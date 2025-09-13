@@ -4202,6 +4202,13 @@ function manageAnimationsByViewport(scale) {
     const cullingRight = visibleRight + padding;
     const cullingBottom = visibleBottom + padding;
     
+    console.log('[Viewport Debug]', {
+        scrollLeft, scrollTop,
+        visibleBounds: {visibleLeft, visibleTop, visibleRight, visibleBottom},
+        cullingBounds: {cullingLeft, cullingTop, cullingRight, cullingBottom},
+        scale
+    });
+    
     // Find all system groups and check if they're in viewport
     const systems = svg.querySelectorAll('g[data-system]');
     systems.forEach(systemGroup => {
@@ -4235,6 +4242,11 @@ function manageAnimationsByViewport(scale) {
         const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
                          systemY >= cullingTop && systemY <= cullingBottom;
         
+        // Debug specific systems
+        if (systemName === 'Sol') {
+            console.log(`[Sol Debug] Position: (${systemX}, ${systemY}), Visible: ${isVisible}`);
+        }
+        
         // Use visibility to control animation rendering
         // This stops painting costs while keeping animations running in background
         if (isVisible) {
@@ -4259,11 +4271,15 @@ function setupViewportAnimationCulling() {
     let cullTimeout = null;
     const CULL_THROTTLE_MS = 100; // Throttle to every 100ms
     
-    // Run initial viewport culling after a short delay to ensure render is complete
-    setTimeout(() => {
-        const scale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, gameState.ui.zoomScale || 1));
-        manageAnimationsByViewport(scale);
-    }, 100);
+    // Run initial viewport culling after render and scroll position are set
+    // Using requestAnimationFrame to ensure layout is complete
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const scale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, gameState.ui.zoomScale || 1));
+            console.log('[Initial Culling] Running viewport check after layout complete');
+            manageAnimationsByViewport(scale);
+        });
+    });
     
     container.addEventListener('scroll', () => {
         if (cullTimeout) clearTimeout(cullTimeout);
