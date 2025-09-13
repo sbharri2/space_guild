@@ -4148,10 +4148,12 @@ function manageAnimationsByZoom(scale) {
     
     if (!gameState.animation) return;
     
-    const shouldAnimationsBeEnabled = scale >= ZOOM_ANIMATION_THRESHOLD && gameState.animation.animationsEnabled;
+    // Only check zoom threshold, not whether animations are enabled
+    // This ensures systems are visible regardless of animation state
+    const zoomAllowsAnimations = scale >= ZOOM_ANIMATION_THRESHOLD;
     
     // Check if we need to change animation state
-    if (shouldAnimationsBeEnabled && gameState.animation.isPausedByZoom) {
+    if (zoomAllowsAnimations && gameState.animation.isPausedByZoom) {
         // Debounce animation resume to prevent rapid on/off
         if (animationResumeTimeout) clearTimeout(animationResumeTimeout);
         animationResumeTimeout = setTimeout(() => {
@@ -4162,7 +4164,7 @@ function manageAnimationsByZoom(scale) {
                 manageAnimationsByViewport(scale);
             }
         }, RESUME_DELAY_MS);
-    } else if (!shouldAnimationsBeEnabled && !gameState.animation.isPausedByZoom) {
+    } else if (!zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
         // Pause animations immediately - zoomed out too far
         if (animationResumeTimeout) {
             clearTimeout(animationResumeTimeout);
@@ -4170,7 +4172,7 @@ function manageAnimationsByZoom(scale) {
         }
         gameState.animation.isPausedByZoom = true;
         pauseAnimations();
-    } else if (shouldAnimationsBeEnabled && !gameState.animation.isPausedByZoom) {
+    } else if (zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
         // Zoom level allows animations, manage viewport culling
         manageAnimationsByViewport(scale);
     }
