@@ -3192,94 +3192,16 @@ function createOrbitingPlayerShipSymbol(centerX, centerY, orbitRadius) {
             </g>`;
 }
 
-// Start orbital animation around a system
+// DISABLED: Start orbital animation around a system - now a no-op
 function startOrbitalAnimation(centerX, centerY, orbitRadius) {
-    // Stop any existing animation
-    stopOrbitalAnimation();
-    if (!gameState.animation.animationsEnabled) {
-        // Place ship at appropriate orbit position without animation
-        const shipEl = document.querySelector('#player-ship .player-ship-symbol');
-        if (shipEl) {
-            const angleDeg = (typeof gameState.player.orbitalAngle === 'number') ? gameState.player.orbitalAngle : 0;
-            const radians = angleDeg * Math.PI / 180;
-            const x = centerX + Math.cos(radians) * orbitRadius;
-            const y = centerY + Math.sin(radians) * orbitRadius;
-            const r = angleDeg + 90;
-            setShipTransform(shipEl, x, y, r);
-        }
-        return;
-    }
-    
-    // Determine starting orbital angle
-    // If a transition set an orbitalAngle already, respect it; otherwise derive from shipRotation
-    let angle;
-    if (typeof gameState.player.orbitalAngle === 'number') {
-        angle = gameState.player.orbitalAngle;
-    } else {
-        const shipRotation = gameState.player.shipRotation || 0;
-        angle = shipRotation - 90; // Convert ship heading to orbital position
-        gameState.player.orbitalAngle = angle;
-    }
-    
-    const orbitSpeed = 0.5; // Degrees per frame (slow rotation)
-    
-    function updateOrbit() {
-        const shipElement = document.getElementById('orbiting-ship');
-        if (!shipElement || gameState.animation.isShipMoving) {
-            return; // Stop if ship element gone or ship is warping
-        }
-        // Throttle updates based on target FPS to reduce power
-        const externalFps = (window.energyMetrics && window.energyMetrics.state && window.energyMetrics.state.targetFPS) || null;
-        const targetFps = gameState.animation.targetFps || externalFps || 30;
-        const minDelta = 1000 / Math.max(1, targetFps);
-        const now = performance.now();
-        if (gameState.animation._lastOrbitUpdate && (now - gameState.animation._lastOrbitUpdate) < minDelta) {
-            if (!gameState.animation.isPaused) {
-                gameState.animation.orbitAnimation = requestAnimationFrame(updateOrbit);
-            }
-            return;
-        }
-        gameState.animation._lastOrbitUpdate = now;
-        
-        // Update player's orbital angle in game state
-        gameState.player.orbitalAngle = (gameState.player.orbitalAngle + orbitSpeed) % 360;
-        
-        // Calculate position on circle using stored orbital angle
-        const radians = gameState.player.orbitalAngle * Math.PI / 180;
-        const x = centerX + Math.cos(radians) * orbitRadius;
-        const y = centerY + Math.sin(radians) * orbitRadius;
-        
-        // Calculate tangent rotation (ship points along orbital path)
-        const tangentRotation = gameState.player.orbitalAngle + 90; // Tangent is 90° ahead of radius
-        
-        // Update ship position and rotation using optimized CSS transform
-        setShipTransform(shipElement, x, y, tangentRotation);
-        
-        // Continue orbital animation only if not paused
-        // Use lower priority during intensive animations to maintain performance
-        if (!gameState.animation.isPaused) {
-            if (frameTimeTracker.animationThrottle) {
-                // Reduce orbital animation frequency during intensive operations
-                gameState.animation.orbitAnimation = throttledRequestAnimationFrame(updateOrbit);
-            } else {
-                gameState.animation.orbitAnimation = requestAnimationFrame(updateOrbit);
-            }
-        }
-    }
-    
-    // Mark that we are orbiting so we can restore after pause
-    gameState.animation.wasOrbiting = true;
-    // Start the animation
-    updateOrbit();
+    // NO-OP: Orbital animations are disabled for stability
+    console.log('[Animations] startOrbitalAnimation() called but disabled');
 }
 
-// Stop orbital animation
+// DISABLED: Stop orbital animation - now a no-op
 function stopOrbitalAnimation() {
-    if (gameState.animation.orbitAnimation) {
-        cancelAnimationFrame(gameState.animation.orbitAnimation);
-        gameState.animation.orbitAnimation = null;
-    }
-    gameState.animation.wasOrbiting = false;
+    // NO-OP: Orbital animations are disabled for stability
+    console.log('[Animations] stopOrbitalAnimation() called but disabled');
 }
 
 // DISABLED: Animation pause function is now a no-op
@@ -6747,54 +6669,10 @@ function setAnimationsEnabled(enabled) {
     console.log(`[Animations] setAnimationsEnabled(${enabled}) called but disabled`);
 }
 
-// Smoothly move the ship from center to first orbit position, then start orbit animation
+// DISABLED: Smoothly move the ship from center to first orbit position - now a no-op
 function startOrbitWithTransition(centerX, centerY, orbitRadius, durationMs = 500) {
-    stopOrbitalAnimation();
-    const shipEl = document.querySelector('#player-ship .player-ship-symbol');
-    if (!shipEl) return;
-    if (!gameState.animation.animationsEnabled) {
-        // No transition; just place at orbit and leave static
-        const angleDeg = (typeof gameState.player.orbitalAngle === 'number') ? gameState.player.orbitalAngle : 0;
-        const radians = angleDeg * Math.PI / 180;
-        const x = centerX + Math.cos(radians) * orbitRadius;
-        const y = centerY + Math.sin(radians) * orbitRadius;
-        const r = angleDeg + 90;
-        setShipTransform(shipEl, x, y, r);
-        return;
-    }
-    const startTransform = shipEl.getAttribute('transform') || `translate(${centerX}, ${centerY}) rotate(0)`;
-    // Determine target position on orbit using current orbitalAngle
-    const angleDeg = (typeof gameState.player.orbitalAngle === 'number') ? gameState.player.orbitalAngle : 0;
-    const radians = angleDeg * Math.PI / 180;
-    const targetX = centerX + Math.cos(radians) * orbitRadius;
-    const targetY = centerY + Math.sin(radians) * orbitRadius;
-    const targetRot = angleDeg + 90;
-    // Parse current translate and rotate
-    const match = /translate\(([-\d\.]+),\s*([-\d\.]+)\)\s*rotate\(([-\d\.]+)\)/.exec(startTransform);
-    let fromX = centerX, fromY = centerY, fromRot = 0;
-    if (match) {
-        fromX = parseFloat(match[1]);
-        fromY = parseFloat(match[2]);
-        fromRot = parseFloat(match[3]);
-    }
-    const t0 = performance.now();
-    function step(now) {
-        const t = Math.min(1, (now - t0) / durationMs);
-        const ease = t * t * (3 - 2 * t); // smoothstep
-        const x = fromX + (targetX - fromX) * ease;
-        const y = fromY + (targetY - fromY) * ease;
-        const r = fromRot + (targetRot - fromRot) * ease;
-        setShipTransform(shipEl, x, y, r);
-        if (t < 1) {
-            requestAnimationFrame(step);
-        } else {
-            // Promote element to orbiting id and start continuous animation
-            gameState.player.orbitalAngle = angleDeg; // preserve angle for orbit start
-            shipEl.id = 'orbiting-ship';
-            startOrbitalAnimation(centerX, centerY, orbitRadius);
-        }
-    }
-    requestAnimationFrame(step);
+    // NO-OP: Orbital animations are disabled for stability
+    console.log('[Animations] startOrbitWithTransition() called but disabled');
 }
 
 // Game-styled dialog (modal) for warnings and info
