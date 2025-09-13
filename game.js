@@ -4248,6 +4248,12 @@ function setupViewportAnimationCulling() {
     let cullTimeout = null;
     const CULL_THROTTLE_MS = 100; // Throttle to every 100ms
     
+    // Run initial viewport culling after a short delay to ensure render is complete
+    setTimeout(() => {
+        const scale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, gameState.ui.zoomScale || 1));
+        manageAnimationsByViewport(scale);
+    }, 100);
+    
     container.addEventListener('scroll', () => {
         if (cullTimeout) clearTimeout(cullTimeout);
         cullTimeout = setTimeout(() => {
