@@ -4158,11 +4158,11 @@ function manageAnimationsByZoom(scale) {
         if (animationResumeTimeout) clearTimeout(animationResumeTimeout);
         animationResumeTimeout = setTimeout(() => {
             gameState.animation.isPausedByZoom = false;
-            if (gameState.animation.animationsEnabled) {
-                resumeAnimations();
-                // Also manage viewport-based culling when resuming
-                manageAnimationsByViewport(scale);
-            }
+            // Always resume SVG animations when zoom allows it
+            // This ensures SMIL animations work even if animationsEnabled is false
+            resumeAnimations();
+            // Also manage viewport-based culling when resuming
+            manageAnimationsByViewport(scale);
         }, RESUME_DELAY_MS);
     } else if (!zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
         // Pause animations immediately - zoomed out too far

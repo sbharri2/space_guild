@@ -1,0 +1,192 @@
+# Animation & Visibility Management - ASCII Flow Chart
+
+## Main Flow: User Interaction → Animation Control → Visibility Management
+
+```
+┌─────────────────────────┐
+│   User Action:          │
+│  • Zoom (pinch/wheel)   │
+│  • Scroll               │
+│  • Pan                  │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  applyMapZoomTransform  │
+│    Calculate scale      │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  manageAnimationsByZoom │
+│   Check zoom level      │
+└───────────┬─────────────┘
+            │
+            ▼
+     ┌──────┴──────┐
+     │ Scale < 0.8?│
+     └──────┬──────┘
+            │
+    ┌───────┴───────┐
+    ▼               ▼
+ [YES]           [NO]
+    │               │
+    ▼               ▼
+┌─────────┐    ┌─────────┐
+│ ZOOM    │    │ ZOOM    │
+│ TOO LOW │    │   OK    │
+└────┬────┘    └────┬────┘
+     │              │
+     ▼              ▼
+┌──────────────────────────────┐    ┌──────────────────────────────┐
+│ • Set isPausedByZoom = true  │    │ Was isPausedByZoom = true?   │
+│ • pauseAnimations()          │    └──────────┬───────────────────┘
+│   (Global SVG pause)         │               │
+└───────────┬──────────────────┘       [YES]───┴───[NO]
+            │                             │           │
+            │                             ▼           │
+            │                    ┌──────────────┐    │
+            │                    │ Wait 500ms   │    │
+            │                    │ (debounce)   │    │
+            │                    └───────┬──────┘    │
+            │                            │           │
+            │                            ▼           │
+            │                    ┌──────────────┐    │
+            │                    │ Clear flag   │    │
+            │                    │ Resume anims │    │
+            │                    └───────┬──────┘    │
+            │                            │           │
+            └────────────┬───────────────┴───────────┘
+                         │
+                         ▼
+        ╔═══════════════════════════════════╗
+        ║  manageAnimationsByViewport()     ║
+        ║  ALWAYS RUNS (No early return!)   ║
+        ╚═══════════════════╤═══════════════╝
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │ Calculate Viewport:   │
+                │ • scrollLeft/Top      │
+                │ • container size      │
+                │ • Apply scale factor  │
+                │ • Add 100px padding   │
+                └───────────┬───────────┘
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │  Get all systems:     │
+                │  g[data-system]       │
+                └───────────┬───────────┘
+                            │
+                ╔═══════════▼═══════════╗
+                ║  FOR EACH SYSTEM:     ║
+                ╚═══════════╤═══════════╝
+                            │
+                ┌───────────▼───────────┐
+                │ Get System Position:  │
+                │ 1. Check transform    │
+                │ 2. Fallback: cx,cy    │
+                └───────────┬───────────┘
+                            │
+                     ┌──────▼──────┐
+                     │ In viewport?│
+                     └──────┬──────┘
+                            │
+                    ┌───────┴───────┐
+                    ▼               ▼
+                 [YES]           [NO]
+                    │               │
+        ┌───────────▼───┐   ┌──────▼──────────┐
+        │ visibility:   │   │ visibility:     │
+        │   "visible"   │   │   "hidden"      │
+        │               │   │                 │
+        │ • Renders     │   │ • No rendering  │
+        │ • Animates*   │   │ • Saves GPU     │
+        │               │   │ • Anim continues│
+        └───────────────┘   └─────────────────┘
+        
+        * If not globally paused by zoom
+
+                            │
+                ╔═══════════▼═══════════╗
+                ║     END OF LOOP       ║
+                ╚═══════════╤═══════════╝
+                            │
+                            ▼
+                ┌───────────────────────┐
+                │   Log Statistics:     │
+                │   • X visible         │
+                │   • Y hidden          │
+                │   • System names      │
+                └───────────────────────┘
+```
+
+## Key State Interactions
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     ANIMATION STATES                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  isPausedByZoom = false          isPausedByZoom = true     │
+│  Scale >= 0.8                    Scale < 0.8               │
+│       ↓                               ↓                    │
+│  ┌─────────┐                    ┌─────────┐               │
+│  │ NORMAL  │                    │ PAUSED  │               │
+│  │  MODE   │                    │  MODE   │               │
+│  └─────────┘                    └─────────┘               │
+│       │                               │                    │
+│       ├──────────────┬────────────────┤                    │
+│       ▼              ▼                ▼                    │
+│  ┌─────────┐    ┌─────────┐     ┌─────────┐              │
+│  │ VISIBLE │    │ HIDDEN  │     │   ALL   │              │
+│  │ SYSTEMS │    │ SYSTEMS │     │ SYSTEMS │              │
+│  └─────────┘    └─────────┘     └─────────┘              │
+│       │              │                │                    │
+│   Animating      Not rendered    Globally paused          │
+│   & rendered     Anim continues   But still managed       │
+│                  in background    for visibility          │
+│                                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Problem & Solution
+
+```
+BEFORE (BUG):                         AFTER (FIXED):
+─────────────                         ──────────────
+
+manageAnimationsByViewport()          manageAnimationsByViewport()
+    │                                     │
+    ▼                                     ▼
+┌──────────────┐                     ┌──────────────┐
+│ isPausedBy   │                     │   Always     │
+│ Zoom = true? │                     │   Continue   │
+└──────┬───────┘                     └──────┬───────┘
+       │                                     │
+   [YES]                                     ▼
+       │                              ┌──────────────┐
+       ▼                              │   Manage     │
+   ┌──────┐                           │  Visibility  │
+   │ EXIT │ ← BUG!                    │   For All    │
+   └──────┘                           │   Systems    │
+                                      └──────────────┘
+   Systems get stuck hidden!          Systems show/hide correctly!
+```
+
+## Event Triggers
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   On Load    │     │  On Scroll   │     │   On Zoom    │
+└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
+       │                     │                     │
+       ▼                     ▼                     ▼
+   After 2x RAF         Throttled 100ms      Immediate
+       │                     │                     │
+       └─────────────────────┴─────────────────────┘
+                             │
+                             ▼
+                 manageAnimationsByViewport()
+```
