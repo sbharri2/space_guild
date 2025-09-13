@@ -4208,7 +4208,7 @@ function manageAnimationsByViewport(scale) {
         const systemName = systemGroup.getAttribute('data-system');
         if (!systemName) return;
         
-        // Get system position from transform or direct position
+        // Get system position from transform or from first circle's cx/cy
         const transform = systemGroup.getAttribute('transform');
         let systemX = 0, systemY = 0;
         
@@ -4217,6 +4217,17 @@ function manageAnimationsByViewport(scale) {
             if (translateMatch) {
                 systemX = parseFloat(translateMatch[1]);
                 systemY = parseFloat(translateMatch[2]);
+            }
+        } else {
+            // If no transform, get position from first circle element
+            const firstCircle = systemGroup.querySelector('circle');
+            if (firstCircle) {
+                const cx = firstCircle.getAttribute('cx');
+                const cy = firstCircle.getAttribute('cy');
+                if (cx && cy) {
+                    systemX = parseFloat(cx);
+                    systemY = parseFloat(cy);
+                }
             }
         }
         
