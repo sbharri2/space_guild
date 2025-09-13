@@ -3930,6 +3930,15 @@ function setupInitialTestAreas() {
     setHexState(startingHexId, 'visited');
 }
 
+function isIOSSafari() {
+    try {
+        const ua = navigator.userAgent || '';
+        const isIOS = /(iPad|iPhone|iPod)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isSafariEngine = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+        return isIOS && isSafariEngine;
+    } catch { return false; }
+}
+
 function initializeEventHandlers() {
     // Add Page Visibility API to pause animations when not visible
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -3997,10 +4006,9 @@ function initializeEventHandlers() {
         }
     });
 
-    // iOS safe mode: allow native gestures; avoid global gesture blocking
+    // iOS Safari only: avoid global gesture blocking; allow native gestures
     try {
-        const isiOS = /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
-        if (!isiOS) {
+        if (!isIOSSafari()) {
             // Optional double-tap block (non-iOS)
             let lastTap = 0;
             document.addEventListener('touchend', (e) => {
@@ -4014,10 +4022,9 @@ function initializeEventHandlers() {
         }
     } catch (e) { /* ignore */ }
 
-    // On iOS, skip custom pinch/pan; rely on native scrolling
+    // On iOS Safari, skip custom pinch/pan; allow on all other browsers (incl. iOS Chrome)
     try {
-        const isiOS = /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
-        if (!isiOS) {
+        if (!isIOSSafari()) {
             setupPinchZoomHandlers();
             setupPanHandlers();
         }
