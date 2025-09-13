@@ -4009,139 +4009,24 @@ function applyMapZoomTransform() {
 // Track animation resume timeout
 let animationResumeTimeout = null;
 
-// Automatically pause/resume animations based on zoom level and viewport
+// DISABLED: Zoom-based animation management - now a no-op
 function manageAnimationsByZoom(scale) {
-    // Define zoom threshold - disable animations when zoomed out beyond this point
-    const ZOOM_ANIMATION_THRESHOLD = 0.8; // When scale < 0.8, disable animations (more aggressive)
-    const RESUME_DELAY_MS = 500; // Wait 500ms before resuming animations
+    // NO-OP: All animation management is disabled for stability
+    console.log(`[Animations] manageAnimationsByZoom(${scale}) called but disabled`);
     
-    if (!gameState.animation) return;
-    
-    // Only check zoom threshold, not whether animations are enabled
-    // This ensures systems are visible regardless of animation state
-    const zoomAllowsAnimations = scale >= ZOOM_ANIMATION_THRESHOLD;
-    
-    // Check if we need to change animation state
-    if (zoomAllowsAnimations && gameState.animation.isPausedByZoom) {
-        // Debounce animation resume to prevent rapid on/off
-        if (animationResumeTimeout) clearTimeout(animationResumeTimeout);
-        animationResumeTimeout = setTimeout(() => {
-            gameState.animation.isPausedByZoom = false;
-            // Always resume SVG animations when zoom allows it
-            // This ensures SMIL animations work even if animationsEnabled is false
-            resumeAnimations();
-            // Also manage viewport-based culling when resuming
-            manageAnimationsByViewport(scale);
-        }, RESUME_DELAY_MS);
-    } else if (!zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
-        // Pause animations immediately - zoomed out too far
-        if (animationResumeTimeout) {
-            clearTimeout(animationResumeTimeout);
-            animationResumeTimeout = null;
-        }
-        gameState.animation.isPausedByZoom = true;
-        pauseAnimations();
-        // Still manage viewport visibility even when zoomed out
-        manageAnimationsByViewport(scale);
-    } else if (zoomAllowsAnimations && !gameState.animation.isPausedByZoom) {
-        // Zoom level allows animations, manage viewport culling
-        manageAnimationsByViewport(scale);
-    } else {
-        // Always ensure viewport visibility is managed
-        manageAnimationsByViewport(scale);
+    // Clear any pending animation resume timeouts to prevent future triggers
+    if (typeof animationResumeTimeout !== 'undefined' && animationResumeTimeout) {
+        clearTimeout(animationResumeTimeout);
+        animationResumeTimeout = null;
+        console.log('[Animations] Cleared pending animationResumeTimeout');
     }
 }
 
-// Pause animations for systems outside the viewport using visibility
+// DISABLED: Viewport animation management - now a no-op
 function manageAnimationsByViewport(scale) {
-    // Always manage visibility regardless of animation state
-    // This ensures systems are shown/hidden properly based on viewport
-    // Note: isPausedByZoom should NOT prevent visibility management
-    
-    const container = document.querySelector('.main-display');
-    const svg = document.querySelector('#ascii-display svg');
-    if (!container || !svg) return;
-    
-    // Get viewport bounds
-    const containerRect = container.getBoundingClientRect();
-    const scrollLeft = container.scrollLeft;
-    const scrollTop = container.scrollTop;
-    
-    // Calculate visible area in content coordinates (accounting for zoom)
-    const visibleLeft = scrollLeft / scale;
-    const visibleTop = scrollTop / scale;
-    const visibleRight = visibleLeft + (containerRect.width / scale);
-    const visibleBottom = visibleTop + (containerRect.height / scale);
-    
-    // Add some padding to prevent flickering at edges
-    const padding = 100 / scale; // 100px padding scaled by zoom (reduced for more aggressive culling)
-    const cullingLeft = visibleLeft - padding;
-    const cullingTop = visibleTop - padding;
-    const cullingRight = visibleRight + padding;
-    const cullingBottom = visibleBottom + padding;
-    
-    // Find all system groups and check if they're in viewport
-    const systems = svg.querySelectorAll('g[data-system]');
-    
-    // Track visibility stats
-    let visibleCount = 0;
-    let hiddenCount = 0;
-    const visibleSystems = [];
-    systems.forEach(systemGroup => {
-        const systemName = systemGroup.getAttribute('data-system');
-        if (!systemName) return;
-        
-        // Get system position from transform or from first circle's cx/cy
-        const transform = systemGroup.getAttribute('transform');
-        let systemX = 0, systemY = 0;
-        
-        if (transform) {
-            const translateMatch = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-            if (translateMatch) {
-                systemX = parseFloat(translateMatch[1]);
-                systemY = parseFloat(translateMatch[2]);
-            }
-        } else {
-            // If no transform, get position from first circle element
-            const firstCircle = systemGroup.querySelector('circle');
-            if (firstCircle) {
-                const cx = firstCircle.getAttribute('cx');
-                const cy = firstCircle.getAttribute('cy');
-                if (cx && cy) {
-                    systemX = parseFloat(cx);
-                    systemY = parseFloat(cy);
-                }
-            }
-        }
-        
-        // Check if system is within culling bounds
-        const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
-                         systemY >= cullingTop && systemY <= cullingBottom;
-        
-        
-        // Use visibility to control animation rendering
-        // This stops painting costs while keeping animations running in background
-        if (isVisible) {
-            // Make visible if it was hidden
-            if (systemGroup.style.visibility === 'hidden') {
-                systemGroup.style.visibility = 'visible';
-            }
-            visibleCount++;
-            visibleSystems.push(systemName);
-        } else {
-            // Hide to stop painting (animations continue but don't render)
-            if (systemGroup.style.visibility !== 'hidden') {
-                systemGroup.style.visibility = 'hidden';
-            }
-            hiddenCount++;
-        }
-    });
-    
-    // Log visibility stats periodically (only when there's a change)
-    if (window.lastVisibleCount !== visibleCount) {
-        console.log(`[Animation Culling] Visible: ${visibleCount} systems | Hidden: ${hiddenCount} systems | Animating: ${visibleSystems.slice(0, 5).join(', ')}${visibleSystems.length > 5 ? '...' : ''}`);
-        window.lastVisibleCount = visibleCount;
-    }
+    // NO-OP: All viewport-based visibility management is disabled
+    // All systems are always visible for stability
+    console.log(`[Animations] manageAnimationsByViewport(${scale}) called but disabled`);
 }
 
 // Setup throttled scroll event for viewport-based animation culling
