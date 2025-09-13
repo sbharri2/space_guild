@@ -3997,43 +3997,32 @@ function initializeEventHandlers() {
         }
     });
 
-    // Pinch-to-zoom and pan/drag on the map (SVG inside #ascii-display)
-    setupPinchZoomHandlers();
-    setupPanHandlers();
-    setupViewportAnimationCulling();
-
-    // iOS Safari: prevent browser pinch-zoom gestures so our map zoom handles it
+    // iOS safe mode: allow native gestures; avoid global gesture blocking
     try {
-        // Block all Safari gesture events
-        document.addEventListener('gesturestart', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gesturestart blocked');
-        }, { passive: false });
-        document.addEventListener('gesturechange', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gesturechange blocked');
-        }, { passive: false });
-        document.addEventListener('gestureend', (e) => { 
-            e.preventDefault(); 
-            e.stopPropagation(); 
-            debugLog('Gesture Block', 'gestureend blocked');
-        }, { passive: false });
-        
-        // Block double-tap to zoom
-        let lastTap = 0;
-        document.addEventListener('touchend', (e) => {
-            const currentTime = Date.now();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 500 && tapLength > 0) {
-                e.preventDefault();
-                debugLog('Double-tap Block', 'prevented Safari zoom');
-            }
-            lastTap = currentTime;
-        }, { passive: false });
-        
+        const isiOS = /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+        if (!isiOS) {
+            // Optional double-tap block (non-iOS)
+            let lastTap = 0;
+            document.addEventListener('touchend', (e) => {
+                const currentTime = Date.now();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 400 && tapLength > 0) {
+                    if (e.cancelable) e.preventDefault();
+                }
+                lastTap = currentTime;
+            }, { passive: false });
+        }
     } catch (e) { /* ignore */ }
+
+    // On iOS, skip custom pinch/pan; rely on native scrolling
+    try {
+        const isiOS = /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+        if (!isiOS) {
+            setupPinchZoomHandlers();
+            setupPanHandlers();
+        }
+    } catch (e) { /* ignore */ }
+    setupViewportAnimationCulling();
 
     // Bind zoom buttons and bottom nav buttons for consistent behavior
     setupZoomButtonHandlers();
