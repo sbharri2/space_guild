@@ -4209,7 +4209,7 @@ function manageAnimationsByZoom(scale) {
     }
 }
 
-// Pause animations for systems outside the viewport
+// Pause animations for systems outside the viewport using visibility
 function manageAnimationsByViewport(scale) {
     if (!gameState.animation.animationsEnabled || gameState.animation.isPausedByZoom) return;
     
@@ -4257,44 +4257,19 @@ function manageAnimationsByViewport(scale) {
         const isVisible = systemX >= cullingLeft && systemX <= cullingRight &&
                          systemY >= cullingTop && systemY <= cullingBottom;
         
-        // Pause/resume animations for this specific system
-        const animateElements = systemGroup.querySelectorAll('animate, animateTransform');
-        animateElements.forEach(animEl => {
-            if (isVisible) {
-                // Resume animation if paused
-                if (animEl.hasAttribute('data-paused-by-viewport')) {
-                    animEl.removeAttribute('data-paused-by-viewport');
-                    // Restore original duration if it was changed
-                    const originalDur = animEl.getAttribute('data-original-dur');
-                    if (originalDur) {
-                        animEl.setAttribute('dur', originalDur);
-                        animEl.removeAttribute('data-original-dur');
-                    }
-                    // Force restart the animation by setting begin to current time
-                    try {
-                        const svg = animEl.ownerSVGElement;
-                        if (svg && svg.getCurrentTime) {
-                            const currentTime = svg.getCurrentTime();
-                            animEl.setAttribute('begin', `${currentTime}s`);
-                        }
-                    } catch (e) {
-                        // Fallback: clone and replace to restart animation
-                        const newAnimEl = animEl.cloneNode(true);
-                        newAnimEl.removeAttribute('data-paused-by-viewport');
-                        animEl.parentNode.replaceChild(newAnimEl, animEl);
-                    }
-                }
-            } else {
-                // Pause animation if not already paused
-                if (!animEl.hasAttribute('data-paused-by-viewport')) {
-                    animEl.setAttribute('data-paused-by-viewport', 'true');
-                    // Save original duration and set to very long to pause
-                    const currentDur = animEl.getAttribute('dur') || '1s';
-                    animEl.setAttribute('data-original-dur', currentDur);
-                    animEl.setAttribute('dur', '999999s');
-                }
+        // Use visibility to control animation rendering
+        // This stops painting costs while keeping animations running in background
+        if (isVisible) {
+            // Make visible if it was hidden
+            if (systemGroup.style.visibility === 'hidden') {
+                systemGroup.style.visibility = 'visible';
             }
-        });
+        } else {
+            // Hide to stop painting (animations continue but don't render)
+            if (systemGroup.style.visibility !== 'hidden') {
+                systemGroup.style.visibility = 'hidden';
+            }
+        }
     });
 }
 
