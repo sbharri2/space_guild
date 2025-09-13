@@ -4647,6 +4647,57 @@ function setupPinchZoomHandlers() {
         }, 20);
     }, { passive: false });
 
+    // Add trackpad/wheel support for desktop pinch-to-zoom
+    container.addEventListener('wheel', (e) => {
+        // Check if this is a pinch gesture (ctrlKey is set for trackpad pinch)
+        if (e.ctrlKey) {
+            e.preventDefault();
+            
+            // Get current scale
+            const currentScale = gameState.ui.zoomScale || 1;
+            
+            // Calculate zoom factor based on wheel delta
+            // Negative deltaY = zoom in, positive = zoom out
+            const zoomFactor = e.deltaY > 0 ? 0.95 : 1.05;
+            const newScale = Math.max(gameState.ui.minZoom, Math.min(gameState.ui.maxZoom, currentScale * zoomFactor));
+            
+            if (Math.abs(newScale - currentScale) < 0.001) return;
+            
+            // Get mouse position relative to container for zoom center
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate content position under mouse
+            const scrollLeft = container.scrollLeft;
+            const scrollTop = container.scrollTop;
+            const contentX = (scrollLeft + mouseX) / currentScale;
+            const contentY = (scrollTop + mouseY) / currentScale;
+            
+            // Apply new scale
+            gameState.ui.zoomScale = newScale;
+            applyMapZoomTransform();
+            
+            // Calculate new scroll to keep content under mouse
+            const newScrollLeft = contentX * newScale - mouseX;
+            const newScrollTop = contentY * newScale - mouseY;
+            
+            // Apply scroll
+            container.scrollLeft = newScrollLeft;
+            container.scrollTop = newScrollTop;
+            
+            // Optional: Log for debugging
+            if (debugMode) {
+                console.log('[Trackpad Zoom]', {
+                    currentScale: currentScale.toFixed(2),
+                    newScale: newScale.toFixed(2),
+                    mousePos: {x: mouseX, y: mouseY},
+                    contentPos: {x: contentX, y: contentY}
+                });
+            }
+        }
+    }, { passive: false });
+
     // iOS Safari safety mechanism - periodic state cleanup
     setInterval(() => {
         // If we think we're pinching but have been for more than 3 seconds without movement, reset
