@@ -6435,20 +6435,47 @@ function showHexStatusBox(hexId) {
         const siteType = hexResources.siteType || 'normal';
         const siteClass = siteType.toLowerCase().replace(/[^a-z]/g, '');
         
+        // Function to get icon based on resource type
+        function getResourceIcon(type, isExtractable) {
+            const typeLC = type.toLowerCase();
+            // Extractable resources
+            if (isExtractable) {
+                if (typeLC.includes('ore')) return '⛏';
+                if (typeLC.includes('crystal')) return '💎';
+                if (typeLC.includes('gas')) return '☁';
+                if (typeLC.includes('metal')) return '⚙';
+                if (typeLC.includes('mineral')) return '♦';
+                return '⛏';
+            }
+            // Tradable resources
+            if (typeLC.includes('fuel')) return '⛽';
+            if (typeLC.includes('parts')) return '🔧';
+            if (typeLC.includes('weapon')) return '🔫';
+            if (typeLC.includes('tech')) return '🔬';
+            if (typeLC.includes('data')) return '💾';
+            if (typeLC.includes('food')) return '🍎';
+            if (typeLC.includes('medical')) return '💊';
+            if (typeLC.includes('contraband')) return '☠';
+            if (typeLC.includes('artifact')) return '🏺';
+            return '📦';
+        }
+        
         for (const [type, data] of hexResources.tradable) {
             const info = RESOURCE_TYPES[type];
             const rarity = info ? info.rarity : 1;
-            const icon = info && info.category === 'Legal' ? '💼' : '⚖';
+            const icon = getResourceIcon(type, false);
             const rarityClass = `rarity-${rarity}`;
-            cards.push(`<div class="res-card ${rarityClass}"><span class="res-icon">${icon}</span></div>`);
+            const shortName = type.length > 8 ? type.substring(0, 6) : type;
+            cards.push(`<div class="res-card ${rarityClass}" title="${type} (${data.current} units)"><span class="res-icon">${icon}</span><span class="res-name">${shortName}</span></div>`);
         }
         for (const [type, data] of hexResources.extractable) {
             const info = RESOURCE_TYPES[type];
             const rarity = info ? info.rarity : 1;
-            const icon = info && info.category === 'Legal' ? '⛏' : '⚙';
+            const icon = getResourceIcon(type, true);
             const rarityClass = `rarity-${rarity}`;
+            const shortName = type.length > 8 ? type.substring(0, 6) : type;
             // Show just the resource info - extraction happens in detailed window
-            cards.push(`<div class="res-card ${rarityClass}"><span class="res-icon">${icon}</span></div>`);
+            cards.push(`<div class="res-card ${rarityClass}" title="${type} (${data.current} units - Extractable)"><span class="res-icon">${icon}</span><span class="res-name">${shortName}</span></div>`);
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
