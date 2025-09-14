@@ -315,9 +315,166 @@ html, body {
 .meta-line { margin: 6px 0 8px 0; color: #00E6A0; font-size: 11px; }
 .actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px 0; }
 .resource-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: 8px 0; }
-.res-card { display: flex; align-items: center; justify-content: space-between; gap: 6px; border: 1px solid #00FF41; border-radius: 6px; padding: 6px 8px; background: rgba(0,255,65,0.05); }
-.res-icon { font-size: 11px; color: #00E6FF; }
-.res-card .qty { color: #FFFFFF; font-size: 12px; }
+/* Sci-fi Resource Rarity Styling */
+.res-card { display: flex; align-items: center; justify-content: space-between; gap: 6px; border-radius: 6px; padding: 6px 8px; position: relative; }
+
+/* Rarity Tier 1 - Basic/Common (Green Tech) */
+.res-card.rarity-1 {
+  border: 2px solid #00FF41;
+  background: rgba(0,255,65,0.05);
+  box-shadow: 0 0 4px rgba(0,255,65,0.2);
+}
+
+/* Rarity Tier 2 - Enhanced (Blue Tech) */
+.res-card.rarity-2 {
+  border: 2px solid #00AAFF;
+  background: rgba(0,170,255,0.08);
+  box-shadow: 0 0 6px rgba(0,170,255,0.3), inset 0 1px 0 rgba(0,170,255,0.2);
+}
+
+/* Rarity Tier 3 - Advanced (Purple Tech) */
+.res-card.rarity-3 {
+  border: 2px solid #AA00FF;
+  background: rgba(170,0,255,0.08);
+  box-shadow: 0 0 8px rgba(170,0,255,0.4), inset 0 1px 0 rgba(170,0,255,0.3);
+}
+
+/* Rarity Tier 4 - Elite (Orange Tech) */
+.res-card.rarity-4 {
+  border: 2px solid #FF6600;
+  background: rgba(255,102,0,0.08);
+  box-shadow: 0 0 10px rgba(255,102,0,0.5), inset 0 1px 0 rgba(255,102,0,0.3);
+  position: relative;
+}
+
+.res-card.rarity-4::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  border: 1px solid rgba(255,102,0,0.4);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* Rarity Tier 5 - Legendary (Gold Tech) */
+.res-card.rarity-5 {
+  border: 2px solid #FFD700;
+  background: rgba(255,215,0,0.08);
+  box-shadow: 0 0 12px rgba(255,215,0,0.6), inset 0 2px 0 rgba(255,215,0,0.4);
+  position: relative;
+  animation: legendaryPulse 3s ease-in-out infinite;
+}
+
+.res-card.rarity-5::before {
+  content: '';
+  position: absolute;
+  top: -3px; left: -3px; right: -3px; bottom: -3px;
+  border: 1px solid rgba(255,215,0,0.5);
+  border-radius: 9px;
+  pointer-events: none;
+}
+
+.res-card.rarity-5::after {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px; right: -1px; bottom: -1px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+@keyframes legendaryPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.6), inset 0 2px 0 rgba(255,215,0,0.4); }
+  50% { box-shadow: 0 0 20px rgba(255,215,0,0.8), inset 0 3px 0 rgba(255,215,0,0.6); }
+}
+
+/* Site-Specific Theming */
+.site-asteroid .res-card {
+  border-style: dashed;
+  background: linear-gradient(135deg, rgba(120,120,120,0.05), rgba(80,80,80,0.05));
+}
+
+.site-comet .res-card {
+  border-style: dotted;
+  background: linear-gradient(135deg, rgba(0,255,255,0.03), rgba(0,200,255,0.03));
+}
+
+.site-derelict .res-card {
+  border-style: double;
+  background: linear-gradient(135deg, rgba(255,100,100,0.04), rgba(200,50,50,0.04));
+}
+
+.site-normal .res-card {
+  border-style: solid;
+  background: linear-gradient(135deg, rgba(0,255,65,0.03), rgba(0,200,50,0.03));
+}
+
+/* Site type indicators for header */
+.site-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.site-type-badge.asteroid {
+  background: rgba(120,120,120,0.2);
+  border: 1px solid #888888;
+  color: #CCCCCC;
+}
+
+.site-type-badge.comet {
+  background: rgba(0,255,255,0.2);
+  border: 1px solid #00FFFF;
+  color: #00FFFF;
+}
+
+.site-type-badge.derelict {
+  background: rgba(255,100,100,0.2);
+  border: 1px solid #FF6464;
+  color: #FF6464;
+}
+
+.site-type-badge.normal {
+  background: rgba(0,255,65,0.2);
+  border: 1px solid #00FF41;
+  color: #00FF41;
+}
+/* Resource Icons with Rarity Colors */
+.res-icon { font-size: 14px; }
+.rarity-1 .res-icon { color: #00FF41; text-shadow: 0 0 2px rgba(0,255,65,0.5); }
+.rarity-2 .res-icon { color: #00AAFF; text-shadow: 0 0 3px rgba(0,170,255,0.6); }
+.rarity-3 .res-icon { color: #AA00FF; text-shadow: 0 0 4px rgba(170,0,255,0.7); }
+.rarity-4 .res-icon { color: #FF6600; text-shadow: 0 0 5px rgba(255,102,0,0.8); }
+.rarity-5 .res-icon { color: #FFD700; text-shadow: 0 0 6px rgba(255,215,0,0.9); }
+/* Resource Quantities - Clean, minimal */
+.res-card .qty { color: rgba(255,255,255,0.8); font-size: 11px; font-weight: normal; }
+
+/* Coordinate display styling */
+.hex-coordinates {
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  color: #00AAFF;
+  background: rgba(0,170,255,0.1);
+  border: 1px solid rgba(0,170,255,0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.hex-coordinates .coord-icon {
+  color: #00AAFF;
+  font-size: 10px;
+}
 .res-btn { background: transparent; color: #00FF41; border: 1px solid #00FF41; border-radius: 6px; padding: 2px 6px; cursor: pointer; font-size: 11px; }
 .res-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 .res-more { text-align: center; color: #00FF41; opacity: 0.8; border: 1px dashed #00FF41; border-radius: 6px; padding: 6px 0; }

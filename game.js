@@ -6428,31 +6428,44 @@ function showHexStatusBox(hexId) {
         extractableResources.forEach(([type]) => { const b = makeBadge(type, 'extractable'); if (b) badges.push(b); });
         
         const titleIcon = getSiteIcon(hexResources.siteName || hexResources.siteType || 'Site');
-        // Build resource cards grid
+        // Build resource cards grid with new styling system
         const cards = [];
+        
+        // Determine site type for theming
+        const siteType = hexResources.siteType || 'normal';
+        const siteClass = siteType.toLowerCase().replace(/[^a-z]/g, '');
+        
         for (const [type, data] of hexResources.tradable) {
             const info = RESOURCE_TYPES[type];
-            const badge = info ? (info.category === 'Legal' ? `💼 L${info.rarity}` : `💼 I${info.rarity}`) : '💼';
-            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn">Collect</button></div>`);
+            const rarity = info ? info.rarity : 1;
+            const icon = info && info.category === 'Legal' ? '💼' : '⚖';
+            const rarityClass = `rarity-${rarity}`;
+            cards.push(`<div class="res-card ${rarityClass}"><span class="res-icon">${icon}</span></div>`);
         }
         for (const [type, data] of hexResources.extractable) {
             const info = RESOURCE_TYPES[type];
-            const badge = info ? (info.category === 'Legal' ? `⛏ L${info.rarity}` : `⛏ I${info.rarity}`) : '⛏';
+            const rarity = info ? info.rarity : 1;
+            const icon = info && info.category === 'Legal' ? '⛏' : '⚙';
+            const rarityClass = `rarity-${rarity}`;
             // Show just the resource info - extraction happens in detailed window
-            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span></div>`);
+            cards.push(`<div class="res-card ${rarityClass}"><span class="res-icon">${icon}</span></div>`);
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
             <div class="status-box-header">
-                <div class="status-title"><span class="icon">${titleIcon}</span> ${hexResources.siteName || 'Resource Site'}</div>
+                <div class="status-title">
+                    <span class="icon">${titleIcon}</span> 
+                    ${hexResources.siteName || 'Resource Site'}
+                    <div class="site-type-badge ${siteClass}">${siteType}</div>
+                </div>
                 ${chipsHtml}
                 <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
             </div>
-            ${metaHtml}
+            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
             <div class="status-box-body">
                 <div class="resource-badges">${badges.join('')}</div>
                 <p class="desc">${hexResources.description || ''}</p>
-                <div class="resource-grid">${cards.slice(0,6).join('')}${cards.length>6?`<div class="res-more">+${cards.length-6} more</div>`:''}</div>
+                <div class="resource-grid site-${siteClass}">${cards.slice(0,6).join('')}${cards.length>6?`<div class="res-more">+${cards.length-6} more</div>`:''}</div>
                 ${actionsRow}
                 ${markerData ? `<div class="hex-marker">Marked: ${markerData.type}</div>` : ''}
             </div>`;
@@ -6471,7 +6484,7 @@ function showHexStatusBox(hexId) {
                 ${chipsHtml}
                 <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
             </div>
-            ${metaHtml}
+            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
             <div class="status-box-body">
                 <div class="system-stats">Type: ${(systemData.type || 'system').toUpperCase()}</div>
                 ${actionsRow}
@@ -6484,7 +6497,7 @@ function showHexStatusBox(hexId) {
                 ${chipsHtml}
                 <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
             </div>
-            ${metaHtml}
+            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
             <div class="status-box-body">
                 <p>No significant features detected in this sector.</p>
                 ${actionsRow}
@@ -6493,11 +6506,11 @@ function showHexStatusBox(hexId) {
         const actionsRow = `<div class="actions-row">${scanButton}${generateDriveButtons(col, row)}<button class="hex-action-btn">Mark</button></div>`;
         content = `
             <div class="status-box-header">
-                <div class="status-title"><span class="icon">⬢</span> Hex ${hexId}</div>
+                <div class="status-title"><span class="icon">⬢</span> Unscanned Hex</div>
                 ${chipsHtml}
                 <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
             </div>
-            ${metaHtml}
+            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
             <div class="status-box-body">
                 <p>Unknown hex. Scanning required to reveal contents.</p>
                 ${actionsRow}
