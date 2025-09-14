@@ -4165,6 +4165,8 @@ function applyMapZoomTransform() {
     target.style.transformOrigin = '0 0';
     // Safari SVG transforms can require transformBox for correct origin
     try { target.style.transformBox = 'fill-box'; } catch (e) { /* ignore */ }
+    // Hint to the browser that transform will change during interaction
+    try { target.style.willChange = 'transform'; } catch (e) { /* ignore */ }
     target.style.transform = `scale(${scale})`;
     
     // DISABLED: Animation management - all systems always visible, no animations
@@ -5354,7 +5356,22 @@ function setupPanHandlers() {
     let velocityY = 0;
     let lastPanX = 0;
     let lastPanY = 0;
-    let panAnimationFrame = null;
+    let panAnimationFrame = null; // momentum RAF id
+    let panRAF = null; // direct pan RAF id
+    let desiredScrollLeft = 0;
+    let desiredScrollTop = 0;
+
+    function requestPanFrame() {
+        if (panRAF !== null) return;
+        panRAF = requestAnimationFrame(() => {
+            panRAF = null;
+            // Apply the latest desired scroll in a single paint
+            container.scrollLeft = desiredScrollLeft;
+            container.scrollTop = desiredScrollTop;
+            // Keep updating while actively panning
+            if (isPanning) requestPanFrame();
+        });
+    }
     
     function startPan(clientX, clientY) {
         // Only allow panning in move mode
@@ -5388,7 +5405,7 @@ function setupPanHandlers() {
         // Add panning class for visual feedback
         container.style.cursor = 'grabbing';
         
-        console.log('[Pan] Started at', clientX, clientY);
+        // console.log('[Pan] Started at', clientX, clientY);
         return true;
     }
     
@@ -5413,15 +5430,11 @@ function setupPanHandlers() {
         lastPanY = clientY;
         lastTouchTime = currentTime;
         
-        // Apply the pan by scrolling (inverted for natural scrolling)
-        const newScrollLeft = scrollStart.x - deltaX;
-        const newScrollTop = scrollStart.y - deltaY;
-        
-        container.scrollTo({
-            left: newScrollLeft,
-            top: newScrollTop,
-            behavior: 'instant'
-        });
+        // Compute target scroll (inverted for natural scrolling)
+        desiredScrollLeft = scrollStart.x - deltaX;
+        desiredScrollTop = scrollStart.y - deltaY;
+        // Defer DOM writes to rAF to avoid flooding during touchmove
+        requestPanFrame();
     }
     
     function endPan() {
@@ -5436,7 +5449,7 @@ function setupPanHandlers() {
             applyMomentum();
         }
         
-        console.log('[Pan] Ended with velocity', velocityX, velocityY);
+        // console.log('[Pan] Ended with velocity', velocityX, velocityY);
         debugLog('Pan Function End', `velocity: ${velocityX.toFixed(2)}, ${velocityY.toFixed(2)}`);
     }
     
@@ -5491,7 +5504,7 @@ function setupPanHandlers() {
     }, { passive: false });
     
     let lastPanTime = 0;
-    const PAN_THROTTLE = 16; // ~60fps max
+    const PAN_THROTTLE = 8; // rely on rAF, keep light throttle
     
     container.addEventListener('touchmove', (e) => {
         window.lastTouchCount = e.touches.length;
