@@ -1873,7 +1873,7 @@ function createAsteroidFieldGraphics(centerX, centerY, hexRadius) {
     const x = Math.floor(centerX - size / 2);
     const y = Math.floor(centerY - size / 2);
     return `
-        <image href="assets/asteroid_belt.png?v=20250914a" x="${x}" y="${y}" width="${size}" height="${size}" opacity="0.9" />
+        <image href="assets/asteroid_belt.png?v=20250914b" x="${x}" y="${y}" width="${size}" height="${size}" opacity="0.9" />
         <g transform="translate(${centerX}, ${centerY})">
             <circle cx="0" cy="0" r="12" fill="#000000" opacity="0.7"/>
             <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" 
@@ -2994,7 +2994,7 @@ function createMiningSystem(x, y, name, color) {
     
     // Asteroid belt image (static)
     const beltSize = 80; // px
-    system += `<image href="assets/asteroid_belt.png?v=20250914a" x="${x - beltSize/2}" y="${y - beltSize/2}" width="${beltSize}" height="${beltSize}" opacity="0.9" />`;
+    system += `<image href="assets/asteroid_belt.png?v=20250914b" x="${x - beltSize/2}" y="${y - beltSize/2}" width="${beltSize}" height="${beltSize}" opacity="0.9" />`;
     
     system += '</g>';
     return system;
