@@ -6438,8 +6438,8 @@ function showHexStatusBox(hexId) {
         for (const [type, data] of hexResources.extractable) {
             const info = RESOURCE_TYPES[type];
             const badge = info ? (info.category === 'Legal' ? `⛏ L${info.rarity}` : `⛏ I${info.rarity}`) : '⛏';
-            // Always make buttons clickable - let the extractResource function explain what's needed
-            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn" onclick="extractResource('${hexId}', '${type}')">Extract</button></div>`);
+            // Show just the resource info - extraction happens in detailed window
+            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span></div>`);
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
@@ -6907,6 +6907,12 @@ function handleFirstDiscoveries(destinationHexId, discoveredResources) {
 }
 
 function showResourceInterface(hexId) {
+    // Close hex status banner to avoid cluttered UI
+    const statusBox = document.querySelector('.status-box');
+    if (statusBox) {
+        statusBox.remove();
+    }
+    
     const resources = gameState.galaxy.resources.hexResources.get(hexId);
     if (!resources) return;
     
