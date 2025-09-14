@@ -1110,8 +1110,7 @@ function aggressiveFreezeSvg(reason = 'freeze') {
         if (svg.pauseAnimations) {
             try { svg.pauseAnimations(); } catch (_) {}
         }
-        // Update HUD
-        try { updateAnimationDebugHUD(reason); } catch (_) {}
+        // HUD removed
     } catch (e) {
         // ignore
     }
@@ -3834,8 +3833,7 @@ function init() {
 
     // Install scrubber to ensure zero animations at DOM level
     setupAnimationScrubber();
-    // Add on-screen debug HUD for iPhone verification
-    setupAnimationDebugHUD();
+    // Animation debug HUD removed
     // Extra guard: pause SVG animations if any survive before initial render settles
     setTimeout(() => {
         const svg = document.querySelector('#ascii-display svg');
