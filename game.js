@@ -189,7 +189,7 @@ const SPECIAL_SITE_TYPES = {
     AncientRuins: {
         name: 'Ancient Ruins',
         description: 'Mysterious alien ruins with strange emanations',
-        resources: ['AICores', 'DarkMatter'],
+        resources: ['ExoticMatter', 'DarkMatter'],
         extractableRatio: 0.7,
         tradableRatio: 0,
         dangerous: true // Risk of ship damage
@@ -204,7 +204,7 @@ const SPECIAL_SITE_TYPES = {
     PirateCache: {
         name: 'Pirate Cache',
         description: 'Hidden pirate supply cache',
-        resources: ['Contraband', 'Spice', 'AICores'],
+        resources: ['Contraband', 'Spice', 'DarkMatter'],
         extractableRatio: 0,
         tradableRatio: 1.0,
         oneTime: true
@@ -212,7 +212,7 @@ const SPECIAL_SITE_TYPES = {
     ResearchProbe: {
         name: 'Research Probe',
         description: 'Abandoned research probe with valuable data',
-        resources: ['ExoticMatter', 'AICores'],
+        resources: ['ExoticMatter', 'QuantumCrystals'],
         extractableRatio: 0.3,
         tradableRatio: 0.3
     },
@@ -2130,6 +2130,60 @@ function regenerateAllResources() {
     
     console.log(`🌟 Generated ${resources.length} resource sites across the galaxy`);
     alert(`Generated ${resources.length} resource sites!`);
+    toggleDevMenu();
+}
+
+function fixExistingResources() {
+    // Fix any existing resources with old naming convention
+    const resourceMapping = {
+        'Legal 1': 'Ore',
+        'Legal 2': 'Circuits', 
+        'Legal 3': 'FuelCells',
+        'Legal 4': 'QuantumCrystals',
+        'Legal 5': 'ExoticMatter',
+        'Illegal 1': 'Contraband',
+        'Illegal 2': 'Spice',
+        'Illegal 3': 'DarkMatter',
+        'Illegal 4': 'AICores'
+    };
+    
+    let fixedCount = 0;
+    for (const [hexId, resources] of gameState.galaxy.resources.hexResources) {
+        let fixed = false;
+        
+        // Fix tradable resources
+        if (resources.tradable && resources.tradable instanceof Map) {
+            const newTradable = new Map();
+            for (const [resourceType, data] of resources.tradable) {
+                const newType = resourceMapping[resourceType] || resourceType;
+                if (newType !== resourceType) {
+                    fixed = true;
+                }
+                newTradable.set(newType, data);
+            }
+            resources.tradable = newTradable;
+        }
+        
+        // Fix extractable resources
+        if (resources.extractable && resources.extractable instanceof Map) {
+            const newExtractable = new Map();
+            for (const [resourceType, data] of resources.extractable) {
+                const newType = resourceMapping[resourceType] || resourceType;
+                if (newType !== resourceType) {
+                    fixed = true;
+                }
+                newExtractable.set(newType, data);
+            }
+            resources.extractable = newExtractable;
+        }
+        
+        if (fixed) fixedCount++;
+    }
+    
+    console.log(`Fixed ${fixedCount} resource sites`);
+    alert(`Fixed ${fixedCount} resource sites with old naming!`);
+    autoSave();
+    updateScreen();
     toggleDevMenu();
 }
 
@@ -10712,6 +10766,68 @@ function migrateSaveData(saveData) {
             delete p.ship.position; // remove deprecated field
             changed = true;
         }
+    }
+
+    // Migrate old resource names
+    if (migrated.galaxy && migrated.galaxy.resources && migrated.galaxy.resources.hexResources) {
+        const resourceMapping = {
+            'Legal 1': 'Ore',
+            'Legal 2': 'Circuits', 
+            'Legal 3': 'FuelCells',
+            'Legal 4': 'QuantumCrystals',
+            'Legal 5': 'ExoticMatter',
+            'Illegal 1': 'Contraband',
+            'Illegal 2': 'Spice',
+            'Illegal 3': 'DarkMatter',
+            'Illegal 4': 'AICores'
+        };
+        
+        for (const [hexId, resources] of migrated.galaxy.resources.hexResources) {
+            // Migrate tradable resources
+            if (resources.tradable) {
+                const newTradable = [];
+                for (const [resourceType, data] of resources.tradable) {
+                    const newType = resourceMapping[resourceType] || resourceType;
+                    if (newType !== resourceType) changed = true;
+                    newTradable.push([newType, data]);
+                }
+                resources.tradable = newTradable;
+            }
+            
+            // Migrate extractable resources
+            if (resources.extractable) {
+                const newExtractable = [];
+                for (const [resourceType, data] of resources.extractable) {
+                    const newType = resourceMapping[resourceType] || resourceType;
+                    if (newType !== resourceType) changed = true;
+                    newExtractable.push([newType, data]);
+                }
+                resources.extractable = newExtractable;
+            }
+        }
+    }
+    
+    // Migrate cargo contents
+    if (migrated.player && migrated.player.cargo && migrated.player.cargo.contents) {
+        const resourceMapping = {
+            'Legal 1': 'Ore',
+            'Legal 2': 'Circuits', 
+            'Legal 3': 'FuelCells',
+            'Legal 4': 'QuantumCrystals',
+            'Legal 5': 'ExoticMatter',
+            'Illegal 1': 'Contraband',
+            'Illegal 2': 'Spice',
+            'Illegal 3': 'DarkMatter',
+            'Illegal 4': 'AICores'
+        };
+        
+        const newCargo = [];
+        for (const [resourceType, quantity] of migrated.player.cargo.contents) {
+            const newType = resourceMapping[resourceType] || resourceType;
+            if (newType !== resourceType) changed = true;
+            newCargo.push([newType, quantity]);
+        }
+        migrated.player.cargo.contents = newCargo;
     }
 
     // Hex grid sets
