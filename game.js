@@ -968,7 +968,8 @@ function generateHexGalaxyMap() {
     svg += generatePlayerShip(hexWidth, hexHeight);
     
     svg += '</svg>';
-    return svg;
+    // Strip any SMIL animations from the markup before insertion
+    return sanitizeSvgAnimations(svg);
 }
 
 // Remove all <animate> and <animateTransform> tags (self-closing or with end tags)
@@ -980,11 +981,203 @@ function sanitizeSvgAnimations(svgMarkup) {
         // Remove any non-self-closing pairs just in case
         svgMarkup = svgMarkup.replace(/<\s*animate\b[\s\S]*?<\s*\/\s*animate\s*>/gi, '');
         svgMarkup = svgMarkup.replace(/<\s*animateTransform\b[\s\S]*?<\s*\/\s*animateTransform\s*>/gi, '');
+        // Also remove animateMotion and set elements if present
+        svgMarkup = svgMarkup.replace(/<\s*animateMotion\b[^>]*\/\s*>/gi, '');
+        svgMarkup = svgMarkup.replace(/<\s*animateMotion\b[\s\S]*?<\s*\/\s*animateMotion\s*>/gi, '');
+        svgMarkup = svgMarkup.replace(/<\s*set\b[^>]*\/\s*>/gi, '');
+        svgMarkup = svgMarkup.replace(/<\s*set\b[\s\S]*?<\s*\/\s*set\s*>/gi, '');
         return svgMarkup;
     } catch (e) {
         console.warn('sanitizeSvgAnimations failed:', e);
         return svgMarkup;
     }
+}
+
+// Remove any SMIL/CSS animations from the live DOM under the map container
+function setupAnimationScrubber() {
+    try {
+        // Disable CSS animations/transitions globally (iOS can resurrect them)
+        if (!document.getElementById('disable-animations-style')) {
+            const style = document.createElement('style');
+            style.id = 'disable-animations-style';
+            style.textContent = `
+                html * { animation: none !important; transition: none !important; }
+                svg animate, svg animateTransform, svg animateMotion, svg set { display: none !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        const container = document.getElementById('ascii-display');
+        if (!container) return;
+
+        const scrubNode = (root) => {
+            if (!root || root.nodeType !== 1) return;
+            // If the node itself is an animation element, remove it
+            const tag = root.tagName ? root.tagName.toLowerCase() : '';
+            if (tag === 'animate' || tag === 'animatetransform' || tag === 'animatemotion' || tag === 'set') {
+                try { root.remove(); } finally {
+                    window.__animDebug = window.__animDebug || { removedCount: 0 };
+                    window.__animDebug.removedCount++;
+                }
+                return;
+            }
+            // Robust removal: remove by selector and also by tree walk/localName
+            const anims = root.querySelectorAll('animate, animateTransform, animateMotion, set');
+            anims.forEach(el => { try { el.remove(); } finally {
+                window.__animDebug = window.__animDebug || { removedCount: 0 };
+                window.__animDebug.removedCount++;
+            }});
+            // Tree walk to catch any case/namespace quirks (iOS Safari)
+            const stack = Array.from(root.children || []);
+            while (stack.length) {
+                const el = stack.pop();
+                const ln = (el.localName || '').toLowerCase();
+                if (ln === 'animate' || ln === 'animatetransform' || ln === 'animatemotion' || ln === 'set') {
+                    try { el.remove(); } finally {
+                        window.__animDebug = window.__animDebug || { removedCount: 0 };
+                        window.__animDebug.removedCount++;
+                    }
+                    continue;
+                }
+                if (el.children && el.children.length) {
+                    for (let i = 0; i < el.children.length; i++) stack.push(el.children[i]);
+                }
+            }
+        };
+
+        // Initial scrub of any existing content
+        scrubNode(container);
+
+        // Observe for future insertions and scrub them immediately (scoped)
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.addedNodes && m.addedNodes.length) {
+                    m.addedNodes.forEach(n => scrubNode(n));
+                }
+            }
+        });
+        observer.observe(container, { childList: true, subtree: true });
+        window.__animationScrubberObserver = observer;
+
+        // Additional global observer as a safety net (iOS BFCache restores)
+        if (!window.__animationScrubberObserverGlobal) {
+            const globalObserver = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    if (m.addedNodes && m.addedNodes.length) {
+                        m.addedNodes.forEach(n => scrubNode(n));
+                    }
+                }
+            });
+            globalObserver.observe(document.documentElement, { childList: true, subtree: true });
+            window.__animationScrubberObserverGlobal = globalObserver;
+        }
+    } catch (e) {
+        console.warn('setupAnimationScrubber failed:', e);
+    }
+}
+
+// Extra guard for Safari/iOS: rescrub and pause on lifecycle events
+function aggressiveFreezeSvg(reason = 'freeze') {
+    try {
+        const svg = document.querySelector('#ascii-display svg');
+        if (!svg) return;
+        // Remove any lingering animation elements
+        const toRemove = svg.querySelectorAll('animate, animateTransform, animateMotion, set');
+        toRemove.forEach(el => { try { el.remove(); } finally {
+            window.__animDebug = window.__animDebug || { removedCount: 0 };
+            window.__animDebug.removedCount++;
+        }});
+        // Namespace/case-insensitive sweep
+        const stack = Array.from(svg.children || []);
+        while (stack.length) {
+            const el = stack.pop();
+            const ln = (el.localName || '').toLowerCase();
+            if (ln === 'animate' || ln === 'animatetransform' || ln === 'animatemotion' || ln === 'set') {
+                try { el.remove(); } finally {
+                    window.__animDebug = window.__animDebug || { removedCount: 0 };
+                    window.__animDebug.removedCount++;
+                }
+                continue;
+            }
+            if (el.style) {
+                try { el.style.animation = 'none'; el.style.transition = 'none'; } catch (_) {}
+            }
+            if (el.children && el.children.length) {
+                for (let i = 0; i < el.children.length; i++) stack.push(el.children[i]);
+            }
+        }
+        // Pause SVG timeline if supported
+        if (svg.pauseAnimations) {
+            try { svg.pauseAnimations(); } catch (_) {}
+        }
+        // Update HUD
+        try { updateAnimationDebugHUD(reason); } catch (_) {}
+    } catch (e) {
+        // ignore
+    }
+}
+
+function updateAnimationDebugHUD(reason = '') {
+    try {
+        const hud = document.getElementById('anim-debug');
+        if (!hud) return;
+        const container = document.getElementById('ascii-display');
+        const scope = container || document;
+        const c1 = scope.querySelectorAll('animate').length;
+        const c2 = scope.querySelectorAll('animateTransform').length;
+        const c3 = scope.querySelectorAll('animateMotion').length;
+        const c4 = scope.querySelectorAll('set').length;
+        const total = c1 + c2 + c3 + c4;
+        const svg = scope.querySelector('svg');
+        let paused = 'N/A';
+        try { paused = (svg && typeof svg.animationsPaused === 'function') ? String(svg.animationsPaused()) : 'N/A'; } catch(_) {}
+        const localObs = !!window.__animationScrubberObserver;
+        const globalObs = !!window.__animationScrubberObserverGlobal;
+        const removed = (window.__animDebug && window.__animDebug.removedCount) || 0;
+        const ts = new Date();
+        const h = ts.getHours().toString().padStart(2,'0');
+        const m = ts.getMinutes().toString().padStart(2,'0');
+        const s = ts.getSeconds().toString().padStart(2,'0');
+        hud.innerHTML = `
+          <div><b>Anim HUD</b> ${h}:${m}:${s}</div>
+          <div>Reason: ${reason}</div>
+          <div>SMIL: a=${c1} t=${c2} m=${c3} s=${c4} total=${total}</div>
+          <div>SVG paused(): ${paused}</div>
+          <div>Observers: local=${localObs} global=${globalObs}</div>
+          <div>Removed total: ${removed}</div>
+          <div style="margin-top:4px;">
+            <button id="anim-debug-scrub" style="margin-right:6px;">Scrub Now</button>
+            <button id="anim-debug-refresh">Refresh</button>
+          </div>
+        `;
+        const btnScrub = document.getElementById('anim-debug-scrub');
+        const btnRefresh = document.getElementById('anim-debug-refresh');
+        if (btnScrub) btnScrub.onclick = () => aggressiveFreezeSvg('manual');
+        if (btnRefresh) btnRefresh.onclick = () => updateAnimationDebugHUD('refresh');
+    } catch (e) { /* ignore */ }
+}
+
+function setupAnimationDebugHUD() {
+    try {
+        if (document.getElementById('anim-debug')) return;
+        const hud = document.createElement('div');
+        hud.id = 'anim-debug';
+        hud.style.position = 'fixed';
+        hud.style.left = '8px';
+        hud.style.top = '8px';
+        hud.style.zIndex = '3000';
+        hud.style.background = 'rgba(0,0,0,0.85)';
+        hud.style.border = '1px solid #00FF41';
+        hud.style.color = '#00FF41';
+        hud.style.fontFamily = 'monospace';
+        hud.style.fontSize = '11px';
+        hud.style.padding = '6px 8px';
+        hud.style.borderRadius = '6px';
+        hud.style.maxWidth = '90vw';
+        hud.style.pointerEvents = 'auto';
+        document.body.appendChild(hud);
+        updateAnimationDebugHUD('hud-init');
+    } catch (e) { /* ignore */ }
 }
 
 // Generate background star field
@@ -2468,7 +2661,8 @@ function generateDiscoveredSystems(hexWidth, hexHeight) {
     }
     
     systems += '</g>';
-    return systems;
+    // Ensure no SMIL can slip through in this batch
+    return sanitizeSvgAnimations(systems);
 }
 
 // Viewport culling removed - SVG handles rendering optimization
@@ -3686,22 +3880,29 @@ function createSystemTooltip(systemId) {
 // Initialize the game
 function init() {
     console.log('Initializing Space Guilds...');
-    
-    // DISABLE ALL ANIMATIONS - Systems will be static for stability
+
+    // Install scrubber to ensure zero animations at DOM level
+    setupAnimationScrubber();
+    // Add on-screen debug HUD for iPhone verification
+    setupAnimationDebugHUD();
+    // Extra guard: pause SVG animations if any survive before initial render settles
     setTimeout(() => {
         const svg = document.querySelector('#ascii-display svg');
         if (svg && svg.pauseAnimations) {
-            svg.pauseAnimations();
-            console.log('[Animations] All system animations disabled for stability');
+            try { svg.pauseAnimations(); } catch (e) { /* ignore */ }
         }
-        
-        // Ensure all systems are visible
-        const systems = document.querySelectorAll('g[data-system]');
-        systems.forEach(system => {
-            system.style.visibility = 'visible';
-        });
-        console.log(`[Visibility] Ensured ${systems.length} systems are visible`);
+        aggressiveFreezeSvg('init-500ms');
     }, 500);
+    // On iOS/Safari, also re-freeze on pageshow/visibility changes and shortly after
+    window.addEventListener('pageshow', () => aggressiveFreezeSvg('pageshow'));
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            aggressiveFreezeSvg('visible');
+            // Re-run shortly after to catch late nodes
+            setTimeout(() => aggressiveFreezeSvg('visible+100ms'), 100);
+            setTimeout(() => aggressiveFreezeSvg('visible+300ms'), 300);
+        }
+    }, { passive: true });
     
     // Initialize zoom logging system
     initZoomLogging();
@@ -5540,6 +5741,10 @@ function updateScreen(screenName) {
             // Reapply map zoom transform if rendering the map
             if (screenName === 'map') {
                 try { applyMapZoomTransform(); } catch (e) { /* ignore */ }
+                // Immediately scrub any SMIL that may have slipped in and pause timeline
+                try { aggressiveFreezeSvg('render-map'); } catch (e) { /* ignore */ }
+                setTimeout(() => { try { aggressiveFreezeSvg('render-map+50ms'); } catch (e) {} }, 50);
+                setTimeout(() => { try { aggressiveFreezeSvg('render-map+200ms'); } catch (e) {} }, 200);
             }
         } else {
             display.textContent = content;
