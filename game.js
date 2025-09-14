@@ -968,8 +968,23 @@ function generateHexGalaxyMap() {
     svg += generatePlayerShip(hexWidth, hexHeight);
     
     svg += '</svg>';
-    
     return svg;
+}
+
+// Remove all <animate> and <animateTransform> tags (self-closing or with end tags)
+function sanitizeSvgAnimations(svgMarkup) {
+    try {
+        // Remove self-closing animate and animateTransform
+        svgMarkup = svgMarkup.replace(/<\s*animate\b[^>]*\/\s*>/gi, '');
+        svgMarkup = svgMarkup.replace(/<\s*animateTransform\b[^>]*\/\s*>/gi, '');
+        // Remove any non-self-closing pairs just in case
+        svgMarkup = svgMarkup.replace(/<\s*animate\b[\s\S]*?<\s*\/\s*animate\s*>/gi, '');
+        svgMarkup = svgMarkup.replace(/<\s*animateTransform\b[\s\S]*?<\s*\/\s*animateTransform\s*>/gi, '');
+        return svgMarkup;
+    } catch (e) {
+        console.warn('sanitizeSvgAnimations failed:', e);
+        return svgMarkup;
+    }
 }
 
 // Generate background star field
