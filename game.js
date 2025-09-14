@@ -6438,10 +6438,8 @@ function showHexStatusBox(hexId) {
         for (const [type, data] of hexResources.extractable) {
             const info = RESOURCE_TYPES[type];
             const badge = info ? (info.category === 'Legal' ? `⛏ L${info.rarity}` : `⛏ I${info.rarity}`) : '⛏';
-            const availability = checkResourceAvailability(type);
-            const canExtract = availability.canExtract && data.current >= 2 && gameState.player.actionPoints >= 2;
-            const disabled = canExtract ? '' : 'disabled title="Need proper tool or insufficient resources"';
-            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn" ${disabled} onclick="extractResource('${hexId}', '${type}')">Extract</button></div>`);
+            // Always make buttons clickable - let the extractResource function explain what's needed
+            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn" onclick="extractResource('${hexId}', '${type}')">Extract</button></div>`);
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
@@ -6972,27 +6970,9 @@ function showResourceInterface(hexId) {
             const extractAmount = 2;
             const apCost = 2;
             
-            let canExtract = availability.canExtract && 
-                           quantity >= extractAmount && 
-                           player.actionPoints >= apCost && 
-                           (player.cargo.usedSpace + extractAmount) <= player.cargo.capacity;
-            
+            // Always show clickable button - let extractResource function provide detailed feedback
             let buttonText = `Extract (${apCost} AP)`;
             let buttonClass = 'resource-btn';
-            
-            if (!availability.canExtract) {
-                buttonText = availability.reason;
-                buttonClass = 'resource-btn disabled';
-            } else if (quantity < extractAmount) {
-                buttonText = `Need ${extractAmount} Units`;
-                buttonClass = 'resource-btn disabled';
-            } else if (player.actionPoints < apCost) {
-                buttonText = 'No AP';
-                buttonClass = 'resource-btn disabled';
-            } else if ((player.cargo.usedSpace + extractAmount) > player.cargo.capacity) {
-                buttonText = 'Cargo Full';
-                buttonClass = 'resource-btn disabled';
-            }
             
             // Show what extraction tool tier can handle this resource
             const playerTool = player.ship.extractionTool;
@@ -7010,7 +6990,7 @@ function showResourceInterface(hexId) {
                         <span class="resource-price">${resourceInfo.basePrice[0]}-${resourceInfo.basePrice[1]} credits</span>
                         ${toolRequiredText}
                     </div>
-                    <button class="${buttonClass}" onclick="extractResource('${hexId}', '${resourceType}')" ${!canExtract ? 'disabled' : ''}>${buttonText}</button>
+                    <button class="${buttonClass}" onclick="extractResource('${hexId}', '${resourceType}')">${buttonText}</button>
                 </div>`;
         }
         
