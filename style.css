@@ -334,6 +334,19 @@ html, body {
   border-radius: 8px;
   border: 1px solid rgba(0,255,65,0.1);
 }
+
+.res-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: rgba(0,255,65,0.05);
+  border: 1px solid rgba(0,255,65,0.2);
+  border-radius: 4px;
+  font-size: 10px;
+  color: #00FF41;
+  min-width: 30px;
+}
 /* Sci-fi Resource Rarity Styling */
 .res-card { 
   display: flex; 
@@ -1140,12 +1153,89 @@ html, body {
     z-index: 1500;
     transform: translateY(-100%);
     transition: transform 0.3s ease;
-    max-height: 25vh;
-    overflow-y: auto;
 }
 
 .hex-status-box-top.active {
     transform: translateY(0);
+}
+
+/* Compact Status Box Layout */
+.status-box-compact {
+    padding: 8px 12px;
+}
+
+.compact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.compact-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.compact-title .icon {
+    font-size: 16px;
+}
+
+.compact-coords {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: #00AAFF;
+    padding: 2px 6px;
+    background: rgba(0,170,255,0.1);
+    border: 1px solid rgba(0,170,255,0.3);
+    border-radius: 3px;
+}
+
+.compact-body {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.compact-resources {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.compact-resources .res-card {
+    min-width: 45px;
+    padding: 4px 3px;
+}
+
+.compact-resources .res-icon {
+    font-size: 16px;
+}
+
+.compact-resources .res-name {
+    font-size: 8px;
+}
+
+.compact-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.compact-actions .hex-action-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.compact-info {
+    font-size: 11px;
+    color: #00FF41;
+    padding: 4px 8px;
+    background: rgba(0,255,65,0.05);
+    border-radius: 3px;
 }
 
 /* Legacy bottom version (keeping for compatibility) */

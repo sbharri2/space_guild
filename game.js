@@ -6410,22 +6410,7 @@ function showHexStatusBox(hexId) {
             resourceList.push(`${data.current} ${type} (${status})`);
         });
 
-        // Build compact resource badges for popup
-        const badgeSet = new Set();
-        function makeBadge(type, source){
-            const info = RESOURCE_TYPES[type];
-            if (!info) return '';
-            const short = (info.category === 'Legal' ? 'L' : 'I') + info.rarity;
-            const cls = info.category === 'Legal' ? 'badge-legal' : 'badge-illegal';
-            const icon = source === 'tradable' ? '💼' : '⛏';
-            const key = `${type}:${source}`;
-            if (badgeSet.has(key)) return '';
-            badgeSet.add(key);
-            return `<span class="resource-badge ${cls}" title="${type} ${source}">${icon} ${short}</span>`;
-        }
-        const badges = [];
-        tradableResources.forEach(([type]) => { const b = makeBadge(type, 'tradable'); if (b) badges.push(b); });
-        extractableResources.forEach(([type]) => { const b = makeBadge(type, 'extractable'); if (b) badges.push(b); });
+        // No badges needed - we show resources as cards directly
         
         const titleIcon = getSiteIcon(hexResources.siteName || hexResources.siteType || 'Site');
         // Build resource cards grid with new styling system
@@ -6479,22 +6464,20 @@ function showHexStatusBox(hexId) {
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
-            <div class="status-box-header">
-                <div class="status-title">
-                    <span class="icon">${titleIcon}</span> 
-                    ${hexResources.siteName || 'Resource Site'}
-                    <div class="site-type-badge ${siteClass}">${siteType}</div>
+            <div class="status-box-compact">
+                <div class="compact-header">
+                    <div class="compact-title">
+                        <span class="icon">${titleIcon}</span> 
+                        ${hexResources.siteName || 'Resource Site'}
+                        ${chipsHtml}
+                    </div>
+                    <div class="compact-coords">${hexId}</div>
+                    <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
                 </div>
-                ${chipsHtml}
-                <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
-            </div>
-            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
-            <div class="status-box-body">
-                <div class="resource-badges">${badges.join('')}</div>
-                <p class="desc">${hexResources.description || ''}</p>
-                <div class="resource-grid site-${siteClass}">${cards.slice(0,6).join('')}${cards.length>6?`<div class="res-more">+${cards.length-6} more</div>`:''}</div>
-                ${actionsRow}
-                ${markerData ? `<div class="hex-marker">Marked: ${markerData.type}</div>` : ''}
+                <div class="compact-body">
+                    <div class="compact-resources">${cards.slice(0,4).join('')}${cards.length>4?`<div class="res-more">+${cards.length-4}</div>`:''}</div>
+                    <div class="compact-actions">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Details</button></div>
+                </div>
             </div>`;
     } else if ((isVisited || isClaimed) && systemData) {
         const titleIcon = getSystemIcon(systemData.type);
@@ -6506,41 +6489,56 @@ function showHexStatusBox(hexId) {
             `<button class="hex-action-btn" onclick="openTradingWindow()">Trade</button>` : '';
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}${scanButton}${tradeButton}<button class="hex-action-btn">Mark</button><button class="hex-action-btn">Details</button></div>`;
         content = `
-            <div class="status-box-header">
-                <div class="status-title"><span class="icon">${titleIcon}</span> ${systemData.name || 'System'}</div>
-                ${chipsHtml}
-                <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
-            </div>
-            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
-            <div class="status-box-body">
-                <div class="system-stats">Type: ${(systemData.type || 'system').toUpperCase()}</div>
-                ${actionsRow}
+            <div class="status-box-compact">
+                <div class="compact-header">
+                    <div class="compact-title">
+                        <span class="icon">${titleIcon}</span> 
+                        ${systemData.name || 'System'}
+                        ${chipsHtml}
+                    </div>
+                    <div class="compact-coords">${hexId}</div>
+                    <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
+                </div>
+                <div class="compact-body">
+                    <div class="compact-info">Type: ${(systemData.type || 'system').toUpperCase()}</div>
+                    <div class="compact-actions">${actionsRow}</div>
+                </div>
             </div>`;
     } else if (isVisited || isClaimed) {
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}${scanButton}<button class="hex-action-btn">Mark</button></div>`;
         content = `
-            <div class="status-box-header">
-                <div class="status-title"><span class="icon">⬢</span> Empty Space</div>
-                ${chipsHtml}
-                <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
-            </div>
-            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
-            <div class="status-box-body">
-                <p>No significant features detected in this sector.</p>
-                ${actionsRow}
+            <div class="status-box-compact">
+                <div class="compact-header">
+                    <div class="compact-title">
+                        <span class="icon">⬢</span> 
+                        Empty Space
+                        ${chipsHtml}
+                    </div>
+                    <div class="compact-coords">${hexId}</div>
+                    <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
+                </div>
+                <div class="compact-body">
+                    <div class="compact-info">No significant features</div>
+                    <div class="compact-actions">${actionsRow}</div>
+                </div>
             </div>`;
     } else if (!isScanned) {
         const actionsRow = `<div class="actions-row">${scanButton}${generateDriveButtons(col, row)}<button class="hex-action-btn">Mark</button></div>`;
         content = `
-            <div class="status-box-header">
-                <div class="status-title"><span class="icon">⬢</span> Unscanned Hex</div>
-                ${chipsHtml}
-                <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
-            </div>
-            <div class="hex-coordinates"><span class="coord-icon">⌖</span> ${hexId}</div>
-            <div class="status-box-body">
-                <p>Unknown hex. Scanning required to reveal contents.</p>
-                ${actionsRow}
+            <div class="status-box-compact">
+                <div class="compact-header">
+                    <div class="compact-title">
+                        <span class="icon">⬢</span> 
+                        Unscanned Hex
+                        ${chipsHtml}
+                    </div>
+                    <div class="compact-coords">${hexId}</div>
+                    <button class="close-btn" onclick="hideHexStatusBox()">✕</button>
+                </div>
+                <div class="compact-body">
+                    <div class="compact-info">Scan required</div>
+                    <div class="compact-actions">${actionsRow}</div>
+                </div>
             </div>`;
     } else {
         // Scanned state (not visited/claimed)
