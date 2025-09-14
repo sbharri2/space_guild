@@ -86,7 +86,6 @@ const RESOURCE_TYPES = {
         rarity: 1,
         basePrice: [50, 80],
         catchRate: 0,
-        extractionEquipment: null,
         description: 'Basic mining material for construction'
     },
     Circuits: {
@@ -94,7 +93,6 @@ const RESOURCE_TYPES = {
         rarity: 2,
         basePrice: [80, 150],
         catchRate: 0,
-        extractionEquipment: 'BasicScanner',
         description: 'Electronic components for ship systems'
     },
     FuelCells: {
@@ -102,7 +100,6 @@ const RESOURCE_TYPES = {
         rarity: 3, 
         basePrice: [120, 200],
         catchRate: 0,
-        extractionEquipment: 'ExtractionRig',
         description: 'Refined fuel for long-distance travel'
     },
     QuantumCrystals: {
@@ -110,7 +107,6 @@ const RESOURCE_TYPES = {
         rarity: 4,
         basePrice: [200, 350],
         catchRate: 0,
-        extractionEquipment: 'QuantumHarvester',
         description: 'Advanced crystals for warp technology'
     },
     ExoticMatter: {
@@ -118,7 +114,6 @@ const RESOURCE_TYPES = {
         rarity: 5,
         basePrice: [400, 700], 
         catchRate: 0,
-        extractionEquipment: 'MatterProcessor',
         description: 'Rare physics-defying materials'
     },
     
@@ -128,7 +123,6 @@ const RESOURCE_TYPES = {
         rarity: 1,
         basePrice: [150, 250],
         catchRate: 0.10,
-        extractionEquipment: null,
         description: 'Stolen goods and illegal weapons'
     },
     Spice: {
@@ -136,7 +130,6 @@ const RESOURCE_TYPES = {
         rarity: 2,
         basePrice: [300, 500],
         catchRate: 0.20,
-        extractionEquipment: 'BasicScanner',
         description: 'Highly addictive psychoactive substance'
     },
     AICores: {
@@ -144,7 +137,6 @@ const RESOURCE_TYPES = {
         rarity: 3,
         basePrice: [600, 1000],
         catchRate: 0.35,
-        extractionEquipment: 'QuantumHarvester',
         description: 'Banned sentient AI technology'
     },
     DarkMatter: {
@@ -152,7 +144,6 @@ const RESOURCE_TYPES = {
         rarity: 4,
         basePrice: [1200, 2000],
         catchRate: 0.50,
-        extractionEquipment: 'MatterProcessor',
         description: 'Extremely dangerous exotic material'
     }
 };
@@ -252,12 +243,13 @@ const gameState = {
         
         // Resource System
         cargo: {
-            capacity: 20,
+            capacity: 12, // Scout1 default, will be updated by SHIP_CONFIGS
             contents: new Map(), // resourceType -> quantity
             usedSpace: 0
         },
         ship: {
             // Position is derived from hexLocation; do not persist a separate copy
+            extractionTool: 'Basic', // Basic, Advanced, Elite, or null
             extractionEquipment: new Set(),
             smugglingUpgrades: {
                 shieldedCargo: false,
@@ -448,19 +440,47 @@ function generateSpecialResourceSite(hexId) {
 }
 
 function checkResourceAvailability(resourceType) {
-    // Check if player has required equipment for extraction
+    // Check if player can extract this resource
     const resourceInfo = RESOURCE_TYPES[resourceType];
     if (!resourceInfo) return { canTrade: false, canExtract: false, reason: 'Unknown resource type' };
     
     const canTrade = true; // Anyone can trade
-    const requiredEquipment = resourceInfo.extractionEquipment;
-    const canExtract = !requiredEquipment || gameState.player.ship.extractionEquipment.has(requiredEquipment);
+    const playerShip = gameState.player.shipType;
+    const extractionTool = gameState.player.ship.extractionTool;
+    
+    // Check if ship can extract at all
+    if (!canShipExtract(playerShip)) {
+        return {
+            canTrade,
+            canExtract: false,
+            reason: 'Only Scout ships can extract resources'
+        };
+    }
+    
+    // Check if extraction tool can handle this resource rarity  
+    const toolConfig = EXTRACTION_TOOLS[extractionTool || 'Basic'];
+    const canExtract = toolConfig && toolConfig.maxRarity >= resourceInfo.rarity;
     
     return {
         canTrade,
         canExtract,
-        reason: canExtract ? null : `Requires ${requiredEquipment} to extract`
+        reason: canExtract ? null : `Requires ${toolConfig ? 'higher tier' : 'an'} extraction tool`
     };
+}
+
+function canShipExtract(shipType) {
+    const shipConfig = SHIP_CONFIGS[shipType];
+    return shipConfig && shipConfig.canExtract;
+}
+
+function getPlayerExtractionTool() {
+    // Ensure player has an extraction tool if they're on a Scout ship
+    const player = gameState.player;
+    if (canShipExtract(player.shipType) && !player.ship.extractionTool) {
+        player.ship.extractionTool = 'Basic'; // Default for Scout ships
+        autoSave();
+    }
+    return player.ship.extractionTool;
 }
 
 function canPlayerCarryResource(resourceType, quantity = 1) {
@@ -6456,9 +6476,10 @@ function showHexStatusBox(hexId) {
         for (const [type, data] of hexResources.extractable) {
             const info = RESOURCE_TYPES[type];
             const badge = info ? (info.category === 'Legal' ? `⛏ L${info.rarity}` : `⛏ I${info.rarity}`) : '⛏';
-            const can = info ? (!info.extractionEquipment || gameState.player.ship.extractionEquipment.has(info.extractionEquipment)) : false;
-            const disabled = can ? '' : 'disabled title="Requires equipment"';
-            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn" ${disabled}>Extract</button></div>`);
+            const availability = checkResourceAvailability(type);
+            const canExtract = availability.canExtract && data.current >= 2 && gameState.player.actionPoints >= 2;
+            const disabled = canExtract ? '' : 'disabled title="Need proper tool or insufficient resources"';
+            cards.push(`<div class="res-card"><span class="res-icon">${badge}</span><span class="qty">x${data.current}</span><button class="res-btn" ${disabled} onclick="extractResource('${hexId}', '${type}')">Extract</button></div>`);
         }
         const actionsRow = `<div class="actions-row">${generateDriveButtons(col, row)}<button class="hex-action-btn" onclick="showResourceInterface('${hexId}')">Resources</button><button class="hex-action-btn">Mark</button></div>`;
         content = `
@@ -6980,41 +7001,54 @@ function showResourceInterface(hexId) {
     if (resources.extractable && resources.extractable.size > 0) {
         interfaceContent += `
             <div class="resource-section">
-                <h4>Extractable Resources (1 AP Required)</h4>
+                <h4>Extractable Resources (2 AP, Extracts 2 Units)</h4>
                 <div class="resource-list">`;
         
         for (const [resourceType, quantity] of resources.extractable) {
             const resourceInfo = RESOURCE_TYPES[resourceType];
-            const hasEquipment = !resourceInfo.extractionEquipment || player.ship.extractionEquipment.has(resourceInfo.extractionEquipment);
-            const canExtract = hasEquipment && player.cargo.usedSpace < player.cargo.capacity && quantity > 0 && player.actionPoints >= 1;
+            const availability = checkResourceAvailability(resourceType);
+            const extractAmount = 2;
+            const apCost = 2;
             
-            let buttonText = 'Extract (1 AP)';
+            let canExtract = availability.canExtract && 
+                           quantity >= extractAmount && 
+                           player.actionPoints >= apCost && 
+                           (player.cargo.usedSpace + extractAmount) <= player.cargo.capacity;
+            
+            let buttonText = `Extract (${apCost} AP)`;
             let buttonClass = 'resource-btn';
             
-            if (!hasEquipment) {
-                buttonText = `Need ${resourceInfo.extractionEquipment}`;
+            if (!availability.canExtract) {
+                buttonText = availability.reason;
                 buttonClass = 'resource-btn disabled';
-            } else if (quantity === 0) {
-                buttonText = 'Depleted';
+            } else if (quantity < extractAmount) {
+                buttonText = `Need ${extractAmount} Units`;
                 buttonClass = 'resource-btn disabled';
-            } else if (player.cargo.usedSpace >= player.cargo.capacity) {
-                buttonText = 'Cargo Full';
-                buttonClass = 'resource-btn disabled';
-            } else if (player.actionPoints < 1) {
+            } else if (player.actionPoints < apCost) {
                 buttonText = 'No AP';
                 buttonClass = 'resource-btn disabled';
+            } else if ((player.cargo.usedSpace + extractAmount) > player.cargo.capacity) {
+                buttonText = 'Cargo Full';
+                buttonClass = 'resource-btn disabled';
             }
+            
+            // Show what extraction tool tier can handle this resource
+            const playerTool = player.ship.extractionTool;
+            const toolConfig = EXTRACTION_TOOLS[playerTool];
+            const canHandle = toolConfig && toolConfig.maxRarity >= resourceInfo.rarity;
+            const toolRequiredText = canHandle ? '' : 
+                `<span class="equipment-required">Requires: ${resourceInfo.rarity <= 2 ? 'Basic' : resourceInfo.rarity <= 3 ? 'Advanced' : 'Elite'} Tool</span>`;
             
             interfaceContent += `
                 <div class="resource-item">
                     <div class="resource-info">
-                        <span class="resource-name">${resourceType}</span>
+                        <span class="resource-name">${resourceType} (Rarity ${resourceInfo.rarity})</span>
                         <span class="resource-category ${resourceInfo.category.toLowerCase()}">${resourceInfo.category}</span>
                         <span class="resource-quantity">×${quantity}</span>
                         <span class="resource-price">${resourceInfo.basePrice[0]}-${resourceInfo.basePrice[1]} credits</span>
-                        ${resourceInfo.extractionEquipment ? `<span class="equipment-required">Requires: ${resourceInfo.extractionEquipment}</span>` : ''}
+                        ${toolRequiredText}
                     </div>
-                    <button class="${buttonClass}" onclick="tradeResource('${hexId}', '${resourceType}', 'extractable')" ${!canExtract ? 'disabled' : ''}>${buttonText}</button>
+                    <button class="${buttonClass}" onclick="extractResource('${hexId}', '${resourceType}')" ${!canExtract ? 'disabled' : ''}>${buttonText}</button>
                 </div>`;
         }
         
@@ -7058,20 +7092,9 @@ function tradeResource(hexId, resourceType, sourceType) {
     if (sourceType === 'tradable') {
         sourceMap = resources.tradable;
     } else if (sourceType === 'extractable') {
-        sourceMap = resources.extractable;
-        apCost = 1;
-        
-        // Check equipment requirement
-        if (resourceInfo.extractionEquipment && !player.ship.extractionEquipment.has(resourceInfo.extractionEquipment)) {
-            alert(`Extraction requires: ${resourceInfo.extractionEquipment}`);
-            return;
-        }
-        
-        // Check AP
-        if (player.actionPoints < apCost) {
-            alert('Insufficient Action Points for extraction!');
-            return;
-        }
+        // Legacy support: redirect to new extraction system
+        alert('Please use the new extraction system via Extract buttons!');
+        return;
     }
     
     const currentQuantity = sourceMap.get(resourceType) || 0;
@@ -7105,93 +7128,182 @@ function tradeResource(hexId, resourceType, sourceType) {
     autoSave();
 }
 
-// Extraction Equipment System
-const EXTRACTION_EQUIPMENT = {
-    'Basic Mining Drill': {
-        cost: 500,
-        description: 'Basic extraction tool for common materials',
-        unlocks: ['Legal_2', 'Illegal_2']
+// New Extraction System
+function extractResource(hexId, resourceType) {
+    console.log(`[EXTRACTION] Starting extraction: ${resourceType} at ${hexId}`);
+    const resources = gameState.galaxy.resources.hexResources.get(hexId);
+    if (!resources) {
+        console.log(`[EXTRACTION] ERROR: No resources found at ${hexId}`);
+        alert('No resources at this location!');
+        return;
+    }
+    
+    const player = gameState.player;
+    const resourceInfo = RESOURCE_TYPES[resourceType];
+    
+    // Check if ship can extract
+    console.log(`[EXTRACTION] Player ship type: ${player.shipType}, Can extract: ${canShipExtract(player.shipType)}`);
+    if (!canShipExtract(player.shipType)) {
+        alert('Only Scout ships can extract resources!');
+        return;
+    }
+    
+    // Check if player has the right extraction tool
+    const extractionTool = getPlayerExtractionTool();
+    const toolConfig = EXTRACTION_TOOLS[extractionTool];
+    
+    console.log(`[EXTRACTION] Current tool: ${extractionTool}, Max rarity: ${toolConfig?.maxRarity}, Resource rarity: ${resourceInfo.rarity}`);
+    
+    if (!toolConfig || toolConfig.maxRarity < resourceInfo.rarity) {
+        const requiredTool = resourceInfo.rarity <= 2 ? 'Basic' : 
+                           resourceInfo.rarity <= 3 ? 'Advanced' : 'Elite';
+        alert(`Requires ${requiredTool} extraction tool to extract ${resourceType}!\n\nYour current tool: ${extractionTool}\nResource rarity: ${resourceInfo.rarity}`);
+        return;
+    }
+    
+    // Check AP (2 AP for extraction)
+    const apCost = 2;
+    if (player.actionPoints < apCost) {
+        alert('Insufficient Action Points! Extraction requires 2 AP.');
+        return;
+    }
+    
+    // Check cargo space (extracts 2 units)
+    const extractAmount = 2;
+    if (player.cargo.usedSpace + extractAmount > player.cargo.capacity) {
+        alert('Not enough cargo space! Extraction yields 2 units.');
+        return;
+    }
+    
+    // Check if resource is available
+    const extractableMap = resources.extractable;
+    const currentQuantity = extractableMap.get(resourceType) || 0;
+    if (currentQuantity < extractAmount) {
+        alert(`Not enough ${resourceType} available! Only ${currentQuantity} units remaining.`);
+        return;
+    }
+    
+    // Perform extraction
+    player.actionPoints -= apCost;
+    extractableMap.set(resourceType, currentQuantity - extractAmount);
+    
+    // Add to cargo
+    const currentCargoAmount = player.cargo.contents.get(resourceType) || 0;
+    player.cargo.contents.set(resourceType, currentCargoAmount + extractAmount);
+    player.cargo.usedSpace += extractAmount;
+    
+    // Success message
+    alert(`Successfully extracted ${extractAmount} units of ${resourceType}!`);
+    
+    // Refresh the interface
+    hideResourceInterface();
+    showResourceInterface(hexId);
+    
+    // Update UI
+    updatePlayerUI();
+    autoSave();
+}
+
+// Extraction Equipment System (New 3-Tier System)
+const EXTRACTION_TOOLS = {
+    'Basic': {
+        cost: 0, // Starting equipment
+        description: 'Standard Scout extraction tool for common resources',
+        maxRarity: 2, // Can extract rarity 1-2
+        requiredShip: 'scout'
     },
-    'Advanced Mining Drill': {
-        cost: 1500,
-        description: 'Heavy-duty extraction for rare materials',
-        unlocks: ['Legal_3', 'Illegal_3']
+    'Advanced': {
+        cost: 2000,
+        description: 'Upgraded extraction system for rare materials',
+        maxRarity: 3, // Can extract rarity 1-3
+        requiredShip: 'scout'
     },
-    'Quantum Extractor': {
-        cost: 5000,
-        description: 'Exotic matter collection device',
-        unlocks: ['Legal_4', 'Illegal_4']
-    },
-    'Molecular Harvester': {
-        cost: 15000,
-        description: 'Gas and particle harvesting system',
-        unlocks: ['Legal_5', 'Illegal_5']
-    },
-    'Exotic Matter Processor': {
-        cost: 50000,
-        description: 'Dangerous artifact handling equipment',
-        unlocks: ['Legal_6', 'Illegal_6']
+    'Elite': {
+        cost: 10000,
+        description: 'Top-tier extraction system for exotic matter',
+        maxRarity: 5, // Can extract rarity 1-5
+        requiredShip: 'scout'
     }
 };
 
+// Legacy extraction equipment (for compatibility)
+const EXTRACTION_EQUIPMENT = EXTRACTION_TOOLS;
+
 function showEquipmentShop() {
+    const player = gameState.player;
+    const currentTool = player.ship.extractionTool;
+    
     let shopContent = `
         <div class="resource-interface-header">
-            <h3>Equipment Shop</h3>
+            <h3>Extraction Tools</h3>
             <button onclick="hideEquipmentShop()" class="close-btn">✕</button>
         </div>
         <div class="resource-interface-body">
             <div class="cargo-status">
-                <h4>Credits: ¢${gameState.player.credits}</h4>
+                <h4>Credits: ¢${player.credits} | Ship: ${player.shipName}</h4>
             </div>
             
             <div class="resource-section">
-                <h4>Owned Equipment</h4>
+                <h4>Current Extraction Tool</h4>
                 <div class="equipment-list">`;
     
-    if (gameState.player.ship.extractionEquipment.size === 0) {
-        shopContent += '<p style="color: #666; font-style: italic;">No equipment owned</p>';
+    if (currentTool) {
+        const toolData = EXTRACTION_TOOLS[currentTool];
+        shopContent += `
+            <div class="equipment-item owned">
+                <div class="equipment-info">
+                    <span class="equipment-name">${currentTool} Extractor</span>
+                    <span class="equipment-description">${toolData.description}</span>
+                    <span class="equipment-unlocks">Can extract rarity 1-${toolData.maxRarity} resources</span>
+                </div>
+                <span class="owned-label">ACTIVE</span>
+            </div>`;
     } else {
-        for (const equipment of gameState.player.ship.extractionEquipment) {
-            const equipData = EXTRACTION_EQUIPMENT[equipment];
-            shopContent += `
-                <div class="equipment-item owned">
-                    <div class="equipment-info">
-                        <span class="equipment-name">${equipment}</span>
-                        <span class="equipment-description">${equipData.description}</span>
-                    </div>
-                    <span class="owned-label">OWNED</span>
-                </div>`;
-        }
+        shopContent += '<p style="color: #666; font-style: italic;">No extraction tool equipped</p>';
     }
     
     shopContent += `</div></div>
             
             <div class="resource-section">
-                <h4>Available Equipment</h4>
+                <h4>Available Upgrades</h4>
                 <div class="equipment-list">`;
     
-    for (const [equipName, equipData] of Object.entries(EXTRACTION_EQUIPMENT)) {
-        const owned = gameState.player.ship.extractionEquipment.has(equipName);
-        const canAfford = gameState.player.credits >= equipData.cost;
-        
-        if (owned) continue; // Skip owned equipment
+    // Show upgrade path
+    const toolOrder = ['Basic', 'Advanced', 'Elite'];
+    const currentIndex = toolOrder.indexOf(currentTool);
+    let hasUpgrades = false;
+    
+    for (let i = currentIndex + 1; i < toolOrder.length; i++) {
+        const toolName = toolOrder[i];
+        const toolData = EXTRACTION_TOOLS[toolName];
+        const canAfford = player.credits >= toolData.cost;
+        hasUpgrades = true;
         
         const buttonClass = canAfford ? 'resource-btn' : 'resource-btn disabled';
-        const buttonText = canAfford ? `Buy ¢${equipData.cost}` : 'Insufficient Credits';
+        const buttonText = canAfford ? `Upgrade ¢${toolData.cost}` : 'Insufficient Credits';
         
         shopContent += `
             <div class="equipment-item">
                 <div class="equipment-info">
-                    <span class="equipment-name">${equipName}</span>
-                    <span class="equipment-description">${equipData.description}</span>
-                    <span class="equipment-unlocks">Unlocks: ${equipData.unlocks.join(', ')}</span>
+                    <span class="equipment-name">${toolName} Extractor</span>
+                    <span class="equipment-description">${toolData.description}</span>
+                    <span class="equipment-unlocks">Can extract rarity 1-${toolData.maxRarity} resources</span>
                 </div>
-                <button class="${buttonClass}" onclick="buyEquipment('${equipName}')" ${!canAfford ? 'disabled' : ''}>${buttonText}</button>
+                <button class="${buttonClass}" onclick="upgradeExtractionTool('${toolName}')" ${!canAfford ? 'disabled' : ''}>${buttonText}</button>
             </div>`;
     }
     
-    shopContent += `</div></div></div>`;
+    if (!hasUpgrades) {
+        shopContent += '<p style="color: #666; font-style: italic;">You have the best extraction tool available!</p>';
+    }
+    
+    shopContent += `</div></div>
+            
+            <div class="resource-section">
+                <h4>⚠️ Shipyard Integration Coming Soon</h4>
+                <p style="color: #888; font-size: 0.9em;">This equipment shop is a preview. Full integration with the shipyard system is planned for future updates.</p>
+            </div>
+        </div>`;
     
     const equipmentShop = document.createElement('div');
     equipmentShop.id = 'equipment-shop';
@@ -7208,34 +7320,54 @@ function hideEquipmentShop() {
     }
 }
 
-function buyEquipment(equipmentName) {
-    const equipment = EXTRACTION_EQUIPMENT[equipmentName];
+// New extraction tool upgrade function
+function upgradeExtractionTool(toolName) {
     const player = gameState.player;
+    const toolData = EXTRACTION_TOOLS[toolName];
     
-    if (player.credits < equipment.cost) {
+    if (!toolData) {
+        alert('Unknown extraction tool!');
+        return;
+    }
+    
+    if (player.credits < toolData.cost) {
         alert('Insufficient credits!');
         return;
     }
     
-    if (player.ship.extractionEquipment.has(equipmentName)) {
-        alert('Equipment already owned!');
+    if (player.ship.extractionTool === toolName) {
+        alert('You already have this extraction tool!');
         return;
     }
     
-    // Purchase equipment
-    player.credits -= equipment.cost;
-    player.ship.extractionEquipment.add(equipmentName);
+    // Check if this is a valid upgrade (can't skip tiers)
+    const toolOrder = ['Basic', 'Advanced', 'Elite'];
+    const currentIndex = toolOrder.indexOf(player.ship.extractionTool);
+    const targetIndex = toolOrder.indexOf(toolName);
     
-    // Refresh the shop
+    if (targetIndex !== currentIndex + 1) {
+        alert('You must upgrade extraction tools in order!');
+        return;
+    }
+    
+    // Perform upgrade
+    player.credits -= toolData.cost;
+    player.ship.extractionTool = toolName;
+    
+    // Success message
+    alert(`Successfully upgraded to ${toolName} Extractor! You can now extract rarity 1-${toolData.maxRarity} resources.`);
+    
+    // Refresh the shop and UI
     hideEquipmentShop();
     showEquipmentShop();
-    
-    // Update UI
     updatePlayerUI();
-    
-    alert(`${equipmentName} purchased successfully!`);
-    // Save purchase
     autoSave();
+}
+
+// Legacy function (disabled - use upgradeExtractionTool instead)
+function buyEquipment(equipmentName) {
+    alert('Legacy equipment system disabled. Use the new extraction tool upgrade system!');
+    return;
 }
 
 // System Market Specializations
@@ -9875,6 +10007,23 @@ function toggleDevScanUnlock() {
     toggleDevMenu();
 }
 
+// Dev function: Set extraction tool
+function setExtractionTool(toolName) {
+    const toolData = EXTRACTION_TOOLS[toolName];
+    if (!toolData) {
+        alert(`Invalid extraction tool: ${toolName}`);
+        return;
+    }
+    
+    // Set the tool directly (bypass normal upgrade path for testing)
+    gameState.player.ship.extractionTool = toolName;
+    
+    alert(`Extraction tool set to: ${toolName} (Can extract rarity 1-${toolData.maxRarity} resources)`);
+    updatePlayerUI();
+    autoSave();
+    toggleDevMenu();
+}
+
 // Performance Profiler & FPS HUD
 const perfMon = {
     running: false,
@@ -9886,6 +10035,14 @@ const perfMon = {
     wrapped: new Map(),
     observer: null
 };
+// Ship configuration including extraction capabilities
+const SHIP_CONFIGS = {
+    scout1: { canExtract: true, cargoCapacity: 12 },
+    scout2: { canExtract: true, cargoCapacity: 15 },
+    scout3: { canExtract: true, cargoCapacity: 18 },
+    scout4: { canExtract: true, cargoCapacity: 20 }
+};
+
 // Scanner capability gating (prep for future scanner implementation)
 const SCAN_UNLOCKS = {
     scout1: ['quick'],
@@ -10631,6 +10788,7 @@ function saveGameState() {
                     usedSpace: gameState.player.cargo.usedSpace
                 },
                 ship: {
+                    extractionTool: gameState.player.ship.extractionTool,
                     extractionEquipment: Array.from(gameState.player.ship.extractionEquipment),
                     smugglingUpgrades: gameState.player.ship.smugglingUpgrades
                 }
@@ -10710,8 +10868,9 @@ function loadGameState() {
                     usedSpace: saveData.player.cargo.usedSpace
                 },
                 ship: {
-                    extractionEquipment: new Set(saveData.player.ship.extractionEquipment),
-                    smugglingUpgrades: saveData.player.ship.smugglingUpgrades
+                    extractionTool: saveData.player.ship.extractionTool || 'Basic',
+                    extractionEquipment: new Set(saveData.player.ship.extractionEquipment || []),
+                    smugglingUpgrades: saveData.player.ship.smugglingUpgrades || {}
                 }
             };
         }
