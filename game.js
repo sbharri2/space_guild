@@ -1870,56 +1870,16 @@ function createHexPath(centerX, centerY, radius) {
 
 // Resource Site Graphics Functions
 function createAsteroidFieldGraphics(centerX, centerY, hexRadius) {
-    let asteroids = '';
-    const numAsteroids = 12;
-    
-    // Create randomly placed asteroids within the hex
-    for (let i = 0; i < numAsteroids; i++) {
-        const angle = (Math.PI * 2 * i) / numAsteroids + Math.random() * 0.5;
-        const distance = hexRadius * (0.2 + Math.random() * 0.6);
-        const x = centerX + Math.cos(angle) * distance;
-        const y = centerY + Math.sin(angle) * distance;
-        const size = 3 + Math.random() * 5;
-        
-        // Create irregular asteroid shape
-        const points = [];
-        const numPoints = 5 + Math.floor(Math.random() * 3);
-        for (let j = 0; j < numPoints; j++) {
-            const pointAngle = (Math.PI * 2 * j) / numPoints;
-            const pointRadius = size * (0.7 + Math.random() * 0.3);
-            const px = x + Math.cos(pointAngle) * pointRadius;
-            const py = y + Math.sin(pointAngle) * pointRadius;
-            points.push(`${px},${py}`);
-        }
-        
-        asteroids += `<polygon points="${points.join(' ')}" 
-                              fill="#666666" 
-                              stroke="#999999" 
-                              stroke-width="0.5" 
-                              opacity="0.6"/>`;
-    }
-    
-    // Add some smaller debris
-    for (let i = 0; i < 20; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = hexRadius * (0.1 + Math.random() * 0.8);
-        const x = centerX + Math.cos(angle) * distance;
-        const y = centerY + Math.sin(angle) * distance;
-        const size = 1 + Math.random() * 2;
-        
-        asteroids += `<circle cx="${x}" cy="${y}" r="${size}" 
-                             fill="#555555" 
-                             opacity="0.4"/>`;
-    }
-    
-    // Add resource indicator icon (mining symbol)
-    asteroids += `<g transform="translate(${centerX}, ${centerY})">
-                    <circle cx="0" cy="0" r="12" fill="#000000" opacity="0.7"/>
-                    <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" 
-                          fill="#FFD700" font-size="16" font-weight="bold">⛏</text>
-                  </g>`;
-    
-    return asteroids;
+    const size = Math.max(24, Math.floor(hexRadius * 1.6));
+    const x = Math.floor(centerX - size / 2);
+    const y = Math.floor(centerY - size / 2);
+    return `
+        <image href="assets/asteroid_belt.png?v=20250914a" x="${x}" y="${y}" width="${size}" height="${size}" opacity="0.9" />
+        <g transform="translate(${centerX}, ${centerY})">
+            <circle cx="0" cy="0" r="12" fill="#000000" opacity="0.7"/>
+            <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" 
+                  fill="#FFD700" font-size="16" font-weight="bold">⛏</text>
+        </g>`;
 }
 
 function createCometTrailGraphics(centerX, centerY, hexRadius) {
@@ -3033,18 +2993,9 @@ function createMiningSystem(x, y, name, color) {
                  <animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite" />
                </circle>`;
     
-    // Asteroid belt
-    for (let i = 0; i < 12; i++) {
-        const angle = i * 30;
-        const radius = 25 + (i % 3) * 5;
-        system += `<g transform="rotate(${angle} ${x} ${y})">
-                     <animateTransform attributeName="transform" type="rotate" 
-                                       values="0 ${x} ${y};360 ${x} ${y}" 
-                                       dur="${15 + i}s" repeatCount="indefinite" additive="sum"/>
-                     <polygon points="${x + radius - 1},${y} ${x + radius + 1},${y - 1} ${x + radius + 1},${y + 1}" 
-                              fill="#999999" opacity="0.5"/>
-                   </g>`;
-    }
+    // Asteroid belt image (static)
+    const beltSize = 80; // px
+    system += `<image href="assets/asteroid_belt.png?v=20250914a" x="${x - beltSize/2}" y="${y - beltSize/2}" width="${beltSize}" height="${beltSize}" opacity="0.9" />`;
     
     system += '</g>';
     return system;
